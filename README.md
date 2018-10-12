@@ -86,13 +86,31 @@ And make sure that you use the latest Kotlin version:
 
 Add dependencies (you can also add other modules that you need):
 
+<details open>
+<summary>Groovy</summary>
+
 ```groovy
 dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.30.2'
 }
 ```
 
+</details>
+<details>
+<summary>Kotlin</summary>
+
+```kotlin
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.30.2")
+}
+```
+
+</details>
+
 And make sure that you use the latest Kotlin version:
+
+<details open>
+<summary>Groovy</summary>
 
 ```groovy
 buildscript {
@@ -100,39 +118,40 @@ buildscript {
 }
 ```
 
-Make sure that you have either `jcenter()` or `mavenCentral()` in the list of repositories:
+</details>
+<details>
+<summary>Kotlin</summary>
 
-```
-repository {
-    jcenter()
-}
-```
-
-### Gradle Kotlin DSL
-
-Add dependencies (you can also add other modules that you need):
-
-```groovy
-dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.30.2")
-}
-```
-
-And make sure that you use the latest Kotlin version:
-
-```groovy
+```kotlin
 plugins {
     kotlin("jvm") version "1.2.70"
 }
 ```
 
+</details>
+
 Make sure that you have either `jcenter()` or `mavenCentral()` in the list of repositories:
 
-```
+<details open>
+<summary>Groovy</summary>
+
+```groovy
 repository {
     jcenter()
 }
 ```
+
+</details>
+<details>
+<summary>Kotlin</summary>
+
+```kotlin
+repository {
+    jcenter()
+}
+```
+
+</details>
 
 ### Multiplatform
 
