@@ -105,7 +105,7 @@ subprojects {
     }
 }
 
-configure(subprojects.findAll { !sourceless.contains(it.name)  }) {
+configure(subprojects.findAll { !sourceless.contains(it.name) }) {
     def platform = platformOf(it)
     apply from: rootProject.file("gradle/compile-${platform}.gradle")
 }
@@ -205,3 +205,6 @@ task deploy(dependsOn: getTasksByName("bintrayUpload", true) + getTasksByName("p
 apply plugin: 'base'
 
 clean.dependsOn gradle.includedBuilds.collect { it.task(':clean') }
+
+ext.subprojectsForCoverage = subprojects.findAll { !sourceless.contains(it.name) && platformOf(it) == "jvm"}
+apply from: rootProject.file('gradle/jacoco.gradle')

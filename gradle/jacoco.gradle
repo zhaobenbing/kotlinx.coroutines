@@ -1,0 +1,23 @@
+/*
+ * Copyright 2016-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ */
+configure(subprojectsForCoverage) {
+    apply plugin: 'jacoco'
+
+    jacoco {
+        toolVersion = "0.8.2"
+        reportsDir = file("$buildDir/reports")
+    }
+
+    jacocoTestReport {
+        dependsOn(test)
+        dependsOn(getTasksByName("transformAtomicfuClasses", true))
+        sourceDirectories = files(sourceSets.main.allSource.srcDirs)
+        classDirectories = files(new File("classes/kotlin/main", buildDir))
+
+        reports {
+            html.enabled = true
+            xml.enabled = true
+        }
+    }
+}
