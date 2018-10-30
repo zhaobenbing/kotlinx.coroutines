@@ -2,6 +2,10 @@
  * Copyright 2016-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
  */
 configure(subprojectsForCoverage) {
+    if (!project.properties['coverage']) {
+        return
+    }
+
     apply plugin: 'jacoco'
 
     jacoco {
@@ -20,4 +24,7 @@ configure(subprojectsForCoverage) {
             xml.enabled = true
         }
     }
+
+
+    build.dependsOn(jacocoTestReport)
 }
