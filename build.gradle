@@ -11,6 +11,7 @@ buildscript {
         }
     }
     repositories {
+        mavenLocal()
         jcenter()
         maven { url "https://kotlin.bintray.com/kotlinx" }
         maven { url "https://kotlin.bintray.com/kotlin-dev" }
@@ -62,6 +63,7 @@ allprojects {
         if (name == "kotlinx-coroutines-play-services") {
             google()
         }
+        mavenLocal()
         jcenter()
         maven { url "https://kotlin.bintray.com/kotlin-dev" }
         maven { url "https://kotlin.bintray.com/kotlin-eap" }
