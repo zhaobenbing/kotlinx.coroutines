@@ -85,7 +85,7 @@ private class SerializingFlatMapCollector<T>(
 ) {
 
     // Let's try to leverage the fact that flatMap is never contended
-    private val channel: Channel<Any> by lazy { Channel<Any>(bufferSize) }
+    private val channel: Channel<Any?> by lazy { Channel<Any?>(bufferSize) }
     private val inProgress = atomic(false)
 
     public suspend fun push(value: T) {
