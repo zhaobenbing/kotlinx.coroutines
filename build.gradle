@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.konan.target.HostManager
 
 apply from: rootProject.file("gradle/experimental.gradle")
 
+def ideaActive = System.getProperty('idea.active') == 'true'
 def rootModule = "kotlinx.coroutines"
 def coreModule = "kotlinx-coroutines-core"
 // Not applicable for Kotlin plugin
@@ -95,7 +96,11 @@ allprojects {
 
     dependencies {
         // See comment below for rationale, it will be replaced with "project" dependency
-        compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:$version"
+        if (ideaActive) {
+            compile project(':kotlinx-coroutines-core')
+        } else {
+            compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:$version"
+        }
         compileOnly "org.jetbrains.kotlinx:atomicfu:$atomicFU_version"
 
         // the only way IDEA can resolve test classes
@@ -118,10 +123,12 @@ allprojects {
  * We artificially replace "project" dependency with "module" one to have proper names in pom files, but then substitute it 
  * to have out "project" dependency back.
  */
-configure(subprojects.findAll { it.name != coreModule && it.name != rootModule }) {
-    configurations.all {
-        resolutionStrategy.dependencySubstitution {
-            substitute module("org.jetbrains.kotlinx:kotlinx-coroutines-core:$version") with project(':kotlinx-coroutines-core')
+if (!ideaActive) {
+    configure(subprojects.findAll { it.name != coreModule && it.name != rootModule }) {
+        configurations.all {
+            resolutionStrategy.dependencySubstitution {
+                substitute module("org.jetbrains.kotlinx:kotlinx-coroutines-core:$version") with project(':kotlinx-coroutines-core')
+            }
         }
     }
 }
