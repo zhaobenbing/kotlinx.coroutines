@@ -5,8 +5,6 @@
 package kotlinx.coroutines.flow
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.*
-import kotlinx.coroutines.flow.operators.*
 import kotlin.test.*
 
 class FlatMapMergeTest : FlatMapMergeBaseTest() {

@@ -42,11 +42,14 @@ public fun <T, R> Flow<T>.flatMapConcat(mapper: suspend (value: T) -> Flow<R>): 
  */
 @FlowPreview
 public fun <T, R> Flow<T>.flatMapMerge(concurrency: Int = 16, bufferSize: Int = 16, mapper: suspend (value: T) -> Flow<R>): Flow<R> {
+    require(bufferSize >= 0) { "Expected non-negative buffer size, but had $bufferSize" }
+    require(concurrency >= 0) { "Expected non-negative concurrency level, but had $concurrency" }
     return flow {
         val semaphore = Channel<Unit>(concurrency)
         val flatMap = SerializingFlatMapCollector(this, bufferSize)
         coroutineScope {
             collect { outerValue ->
+                // TODO real semaphore (#94)
                 semaphore.send(Unit) // Acquire concurrency permit
                 val inner = mapper(outerValue)
                 launch {
@@ -94,13 +97,12 @@ private class SerializingFlatMapCollector<T>(
 ) {
 
     // Let's try to leverage the fact that flatMapMerge is never contended
-    private val channel: Channel<Any?> by lazy { Channel<Any?>(bufferSize) } // Should be any, but KT-30796
+    // TODO 1.2.1 do not allocate channel
+    private val channel = Channel<Any?>(bufferSize) // Should be any, but KT-30796
     private val inProgressLock = atomic(false)
-    private val sentValues = atomic(0)
 
     public suspend fun emit(value: T) {
         if (!inProgressLock.tryAcquire()) {
-            sentValues.incrementAndGet()
             channel.send(value ?: NullSurrogate)
             if (inProgressLock.tryAcquire()) {
                 helpEmit()
@@ -116,17 +118,14 @@ private class SerializingFlatMapCollector<T>(
     private suspend fun helpEmit() {
         while (true) {
             var element = channel.poll()
-            while (element != null) { // TODO receive or closed
-                if (element === NullSurrogate) downstream.emit(null as T)
-                else downstream.emit(element as T)
-                sentValues.decrementAndGet()
+            while (element != null) { // TODO receive or closed (#330)
+                downstream.emit(NullSurrogate.unbox(element))
                 element = channel.poll()
             }
 
             inProgressLock.release()
-            // Enforce liveness of the algorithm
-            // TODO looks like isEmpty use-case
-            if (sentValues.value == 0 || !inProgressLock.tryAcquire()) break
+            // Enforce liveness
+            if (channel.isEmpty || !inProgressLock.tryAcquire()) break
         }
     }
 }

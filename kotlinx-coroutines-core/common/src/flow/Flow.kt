@@ -88,14 +88,20 @@ public interface Flow<out T> {
      * 1) It should not change the coroutine context (e.g. with `withContext(Dispatchers.IO)`) when emitting values.
      *    The emission should happen in the context of the [collect] call.
      *
-     * Only coroutine builders that inherit the context are allowed, for example the following code is fine:
+     * Only coroutine builders that inherit the context are allowed, for example:
      * ```
-     * coroutineScope { // Context is inherited
-     *     launch { // Dispatcher is not overridden, fine as well
-     *         collector.emit(someValue)
+     * class MyFlow : Flow<Int> {
+     *     override suspend fun collect(collector: FlowCollector<in Int>) {
+     *         coroutineScope {
+     *             // Context is inherited
+     *             launch { // Dispatcher is not overridden, fine as well
+     *                 collector.emit(42) // Emit from launch
+     *             }
+     *         }
      *     }
      * }
      * ```
+     * is a proper [Flow] implementation, but using `launch(Dispatchers.IO)` is not.
      *
      * 2) It should serialize calls to [emit][FlowCollector.emit] as [FlowCollector] implementations are not thread safe by default.
      */
