@@ -10,7 +10,6 @@ import kotlinx.coroutines.internal.*
 import java.io.*
 import java.util.*
 import java.util.concurrent.*
-import java.util.concurrent.locks.*
 
 /**
  * Coroutine scheduler (pool of shared threads) which primary target is to distribute dispatched coroutines over worker threads,
@@ -61,7 +60,8 @@ internal class CoroutineScheduler(
     private val corePoolSize: Int,
     private val maxPoolSize: Int,
     private val idleWorkerKeepAliveNs: Long = IDLE_WORKER_KEEP_ALIVE_NS,
-    private val schedulerName: String = DEFAULT_SCHEDULER_NAME
+    private val schedulerName: String = DEFAULT_SCHEDULER_NAME,
+    private val parking: Parking<Worker> = LockSupportParking
 ) : Executor, Closeable {
     init {
         require(corePoolSize >= MIN_SUPPORTED_POOL_SIZE) {
@@ -133,7 +133,7 @@ internal class CoroutineScheduler(
      * Pushes worker into [parkedWorkersStack].
      * It does nothing is this worker is already physically linked to the stack.
      * This method is invoked only from the worker thread itself.
-     * This invocation always precedes [LockSupport.parkNanos].
+     * This invocation always precedes [Parking.park].
      * See [Worker.doPark].
      */
     private fun parkedWorkersStackPush(worker: Worker) {
@@ -160,7 +160,7 @@ internal class CoroutineScheduler(
     /**
      * Pops worker from [parkedWorkersStack].
      * It can be invoked concurrently from any thread that is looking for help and needs to unpark some worker.
-     * This invocation is always followed by an attempt to [LockSupport.unpark] resulting worker.
+     * This invocation is always followed by an attempt to [Parking.unpark] resulting worker.
      * See [tryUnpark].
      */
     private fun parkedWorkersStackPop(): Worker? {
@@ -307,7 +307,7 @@ internal class CoroutineScheduler(
             val worker = workers[i]!!
             if (worker !== currentWorker) {
                 while (worker.isAlive) {
-                    LockSupport.unpark(worker)
+                    parking.unpark(worker)
                     worker.join(timeout)
                 }
                 val state = worker.state
@@ -433,7 +433,7 @@ internal class CoroutineScheduler(
              * Send unpark signal anyway, because the thread may have made decision to park but have not yet set its
              * state to parking and this could be the last thread we have (unparking random thread would not harm).
              */
-            LockSupport.unpark(worker)
+            parking.unpark(worker)
             /*
              * If this thread was not in parking state then we definitely need to find another thread.
              * We err on the side of unparking more threads than needed here.
@@ -742,6 +742,7 @@ internal class CoroutineScheduler(
                 }
             }
             tryReleaseCpu(WorkerState.TERMINATED)
+            parking.workerStopped(this)
         }
 
         private fun beforeTask(taskMode: TaskMode, taskSubmissionTime: Long) {
@@ -845,7 +846,7 @@ internal class CoroutineScheduler(
              */
             parkedWorkersStackPush(this)
             if (!blockingQuiescence()) return false
-            LockSupport.parkNanos(nanos)
+            parking.park(this, nanos)
             return true
         }
 

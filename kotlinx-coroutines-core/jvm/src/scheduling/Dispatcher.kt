@@ -36,13 +36,29 @@ open class ExperimentalCoroutineDispatcher(
     private val corePoolSize: Int,
     private val maxPoolSize: Int,
     private val idleWorkerKeepAliveNs: Long,
-    private val schedulerName: String = "CoroutineScheduler"
+    private val schedulerName: String = "CoroutineScheduler",
+    private val parking: Parking<Thread> = LockSupportParking
 ) : ExecutorCoroutineDispatcher() {
+    constructor(
+        corePoolSize: Int,
+        maxPoolSize: Int,
+        idleWorkerKeepAliveNs: Long,
+        schedulerName: String = "CoroutineScheduler"
+    ) : this(corePoolSize, maxPoolSize, idleWorkerKeepAliveNs, schedulerName, LockSupportParking)
+
+    @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
     constructor(
         corePoolSize: Int = CORE_POOL_SIZE,
         maxPoolSize: Int = MAX_POOL_SIZE,
         schedulerName: String = DEFAULT_SCHEDULER_NAME
     ) : this(corePoolSize, maxPoolSize, IDLE_WORKER_KEEP_ALIVE_NS, schedulerName)
+
+    constructor(
+        corePoolSize: Int = CORE_POOL_SIZE,
+        maxPoolSize: Int = MAX_POOL_SIZE,
+        schedulerName: String = DEFAULT_SCHEDULER_NAME,
+        parking: Parking<Thread> = LockSupportParking
+    ) : this(corePoolSize, maxPoolSize, IDLE_WORKER_KEEP_ALIVE_NS, schedulerName, parking)
 
     @Deprecated(message = "Binary compatibility for Ktor 1.0-beta", level = DeprecationLevel.HIDDEN)
     constructor(
@@ -110,7 +126,8 @@ open class ExperimentalCoroutineDispatcher(
         }
     }
 
-    private fun createScheduler() = CoroutineScheduler(corePoolSize, maxPoolSize, idleWorkerKeepAliveNs, schedulerName)
+    private fun createScheduler() =
+        CoroutineScheduler(corePoolSize, maxPoolSize, idleWorkerKeepAliveNs, schedulerName, parking)
 
     // fot tests only
     @Synchronized
