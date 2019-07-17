@@ -8,10 +8,12 @@
 
 package kotlinx.coroutines.flow
 
+import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.internal.*
 import kotlinx.coroutines.selects.*
+import kotlin.coroutines.*
 import kotlin.jvm.*
 import kotlinx.coroutines.flow.unsafeFlow as flow
 
@@ -210,9 +212,9 @@ private fun CoroutineScope.asFairChannel(flow: Flow<*>): ReceiveChannel<Any> = p
  * ```
  */
 @ExperimentalCoroutinesApi
-public fun <T1, T2, R> Flow<T1>.zip(other: Flow<T2>, transform: suspend (T1, T2) -> R): Flow<R> = flow {
+public fun <T1, T2, R> Flow<T1>.zip2(other: Flow<T2>, transform: suspend (T1, T2) -> R): Flow<R> = flow {
     coroutineScope {
-        val first = asChannel(this@zip)
+        val first = asChannel(this@zip2)
         val second = asChannel(other)
         /*
          * This approach only works with rendezvous channel and is required to enforce correctness
@@ -251,4 +253,144 @@ private fun CoroutineScope.asChannel(flow: Flow<*>): ReceiveChannel<Any> = produ
     flow.collect { value ->
         channel.send(value ?: NULL)
     }
+}
+
+@ExperimentalCoroutinesApi
+public fun <T1, T2, R> Flow<T1>.zip(other: Flow<T2>, transform: suspend (T1, T2) -> R): Flow<R> = flow {
+    coroutineScope {
+        val first: ZipChannel = asZipChannel(this@zip)
+        val second: ZipChannel = asZipChannel(other)
+
+        try {
+            while (true) {
+                // End of first flow
+                val firstValue = first.receive() ?: return@coroutineScope
+                val secondValue = second.receive() ?: return@coroutineScope
+                emit(transform(NULL.unbox(firstValue), NULL.unbox(secondValue)))
+            }
+        } catch (e: AbortFlowException) {
+            // complete
+        } finally {
+            // TODO does not look right
+            second.close(AbortFlowException())
+            first.close(AbortFlowException())
+        }
+    }
+}
+
+private fun CoroutineScope.asZipChannel(flow: Flow<*>): ZipChannel {
+    val channel = ZipChannel()
+    launch {
+        var throwable: Throwable? = null
+        try {
+            flow.collect { value ->
+                channel.send(value ?: NULL)
+            }
+        } catch (e: Throwable) {
+            throwable = e
+            throw e
+        } finally {
+            channel.close(throwable)
+        }
+    }
+    return channel
+}
+
+
+// TODO cancellation bound to outer job is not implemented
+private class ZipChannel() {
+
+    private var enqueuedValue: Any = NULL_VALUE
+    private val rendezvous = atomic<Any?>(null)
+
+    // Any or null if closed normally
+    suspend fun receive(): Any? {
+        val result = poll()
+        if (result != null) {
+            return result.unwrap()
+        }
+
+        return suspendAtomicCancellableCoroutine {
+            if (!rendezvous.compareAndSet(null, it)) {
+                it.resumeWithResult(poll()!!)
+            }
+        }
+    }
+
+    private fun poll(): Any? {
+        val sender = rendezvous.value
+        if (sender === null) return null
+        if (sender is Closed) return sender
+
+        val result = enqueuedValue
+        enqueuedValue = NULL_VALUE
+        rendezvous.value = null
+        (sender as Continuation<Unit>).resumeWith(Result.success(Unit))
+        return result
+    }
+
+    private fun Any.unwrap(): Any? {
+        return when {
+            this !is Closed -> this
+            cause === null -> null
+            else -> throw cause
+        }
+    }
+
+    private fun Continuation<Any?>.resumeWithResult(result: Any) {
+        when {
+            result !is Closed -> resumeWith(Result.success(result))
+            result.cause === null -> resumeWith(Result.success(null))
+            else -> resumeWith(Result.failure(result.cause))
+        }
+    }
+
+    suspend fun send(value: Any) {
+        assert { value !== NULL_VALUE }
+        if (offer(value)) return
+        suspendAtomicCancellableCoroutine<Unit?> {
+            enqueuedValue = value
+            if (!rendezvous.compareAndSet(null, it)) {
+                enqueuedValue = NULL_VALUE
+                val result = offer(value)
+                assert { result }
+                it.resume(Unit)
+            }
+        }
+    }
+
+    private fun offer(value: Any): Boolean {
+        val receiver = rendezvous.value
+        while (true) {
+            if (receiver !== null) {
+                if (receiver is Closed) {
+                    throw receiver.cause ?: AbortFlowException()
+                }
+
+                rendezvous.value = null
+                (receiver as Continuation<Any>).resumeWith(Result.success(value))
+                return true
+            }
+
+            return false
+        }
+    }
+
+    fun close(cause: Throwable? = null) {
+        val closed = Closed(cause)
+        while (true) {
+            val previous = rendezvous.value
+            if (previous is Closed) return
+            if (rendezvous.compareAndSet(previous, closed)) {
+                if (previous is Continuation<*>) {
+                    previous as Continuation<Any?>
+                    if (cause === null) previous.resumeWith(Result.success(null))
+                    else previous.resumeWith(Result.failure(cause))
+                }
+                return
+            }
+        }
+    }
+
+    private class Closed(@JvmField val cause: Throwable? = null)
 }
