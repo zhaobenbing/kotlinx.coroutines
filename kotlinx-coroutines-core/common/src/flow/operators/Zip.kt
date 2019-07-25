@@ -212,10 +212,10 @@ private fun CoroutineScope.asFairChannel(flow: Flow<*>): ReceiveChannel<Any> = p
  * ```
  */
 @ExperimentalCoroutinesApi
-public fun <T1, T2, R> Flow<T1>.zip2(other: Flow<T2>, transform: suspend (T1, T2) -> R): Flow<R> = flow {
+public fun <T1, T2, R> Flow<T1>.zip2(other: Flow<T2>, buffer: Int, transform: suspend (T1, T2) -> R): Flow<R> = flow {
     coroutineScope {
-        val first = asChannel(this@zip2)
-        val second = asChannel(other)
+        val first = asChannel(this@zip2, buffer)
+        val second = asChannel(other, buffer)
         /*
          * This approach only works with rendezvous channel and is required to enforce correctness
          * in the following scenario:
@@ -249,9 +249,9 @@ public fun <T1, T2, R> Flow<T1>.zip2(other: Flow<T2>, transform: suspend (T1, T2
 }
 
 // Channel has any type due to onReceiveOrNull. This will be fixed after receiveOrClosed
-private fun CoroutineScope.asChannel(flow: Flow<*>): ReceiveChannel<Any> = produce {
+private fun CoroutineScope.asChannel(flow: Flow<*>, buffer: Int): ReceiveChannel<Any> = produce(capacity = buffer) {
     flow.collect { value ->
-        channel.send(value ?: NULL)
+        return@collect channel.send(value ?: NULL)
     }
 }
 
@@ -278,13 +278,19 @@ public fun <T1, T2, R> Flow<T1>.zip(other: Flow<T2>, transform: suspend (T1, T2)
     }
 }
 
+suspend fun main() {
+    val f = flowOf(1, 2, 3, 4  )
+    f.zip(f, { a, b -> a}).collect()
+    println(1)
+}
+
 private fun CoroutineScope.asZipChannel(flow: Flow<*>): ZipChannel {
     val channel = ZipChannel()
     launch {
         var throwable: Throwable? = null
         try {
             flow.collect { value ->
-                channel.send(value ?: NULL)
+                return@collect channel.send(value ?: NULL)
             }
         } catch (e: Throwable) {
             throwable = e
@@ -348,7 +354,7 @@ private class ZipChannel() {
     suspend fun send(value: Any) {
         assert { value !== NULL_VALUE }
         if (offer(value)) return
-        suspendAtomicCancellableCoroutine<Unit?> {
+        return suspendAtomicCancellableCoroutine {
             enqueuedValue = value
             if (!rendezvous.compareAndSet(null, it)) {
                 enqueuedValue = NULL_VALUE
