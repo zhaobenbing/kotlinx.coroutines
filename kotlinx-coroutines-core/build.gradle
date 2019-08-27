@@ -2,6 +2,10 @@
  * Copyright 2016-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
  */
 
+plugins {
+    id 'jacoco'
+}
+
 apply plugin: 'kotlin-multiplatform'
 apply from: rootProject.file("gradle/targets.gradle")
 apply from: rootProject.file("gradle/compile-jvm-multiplatform.gradle")
@@ -39,6 +43,21 @@ kotlin {
                 compileTask.kotlinOptions.freeCompilerArgs += ["-Xdump-declarations-to=${buildDir}/visibilities.json"]
             }
         }
+    }
+
+    // this is needed for Jacoco
+    jvm {
+        withJava()
+    }
+}
+
+task jvmTestCoverage(type: JacocoReport, dependsOn: jvmTest) {
+    group = "verification"
+    executionData jvmTest
+    setClassDirectories(files("$buildDir/classes/kotlin/jvm/main"))
+    setSourceDirectories(files(["$projectDir/common/src", "$projectDir/jvm/src"]))
+    reports {
+        html.destination "$buildDir/reports/jacoco/jvmTest"
     }
 }
 
