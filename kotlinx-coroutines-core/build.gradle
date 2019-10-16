@@ -15,10 +15,32 @@ apply from: rootProject.file('gradle/publish-npm-js.gradle')
  * because JMV-only projects depend on core, thus core should always be initialized before configuration.
  */
 kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                // todo: we should not need it
+                // todo: it must be compileOnly or JVM is spoiled !!!
+                implementation "org.jetbrains.kotlinx:atomicfu-common:$atomicfu_version"
+            }
+        }
+        concurrentMain {
+            dependsOn commonMain
+        }
+        concurrentTest {
+            dependsOn commonTest
+            // todo: it is not needed? why?
+            //dependsOn concurrentMain
+        }
+        jvmMain { dependsOn concurrentMain }
+        jvmTest { dependsOn concurrentTest }
+        nativeMain { dependsOn concurrentMain }
+        nativeTest { dependsOn concurrentTest }
+    }
+
     configure(sourceSets) {
         def srcDir = name.endsWith('Main') ? 'src' : 'test'
         def platform = name[0..-5]
-        kotlin.srcDir "$platform/$srcDir"
+        kotlin.srcDirs = ["$platform/$srcDir"]
         if (name == "jvmMain") {
             resources.srcDirs = ["$platform/resources"]
         } else if (name == "jvmTest") {
