@@ -104,12 +104,10 @@ private open class DeferredCoroutine<T>(
 
 private class LazyDeferredCoroutine<T>(
     parentContext: CoroutineContext,
-    block: suspend CoroutineScope.() -> T
+    private val block: suspend CoroutineScope.() -> T
 ) : DeferredCoroutine<T>(parentContext, active = false) {
-    private val continuation = block.createCoroutineUnintercepted(this, this)
-
     override fun onStart() {
-        continuation.startCoroutineCancellable(this)
+        startCoroutine(CoroutineStart.DEFAULT, this, this, block)
     }
 }
 
@@ -157,7 +155,7 @@ public suspend fun <T> withContext(
     // SLOW PATH -- use new dispatcher
     val coroutine = DispatchedCoroutine(newContext, uCont)
     coroutine.initParentJob()
-    block.startCoroutineCancellable(coroutine, coroutine)
+    startCoroutine(CoroutineStart.DEFAULT, coroutine, coroutine, block)
     coroutine.getResult()
 }
 
@@ -171,6 +169,28 @@ public suspend fun <T> withContext(
 public suspend inline operator fun <T> CoroutineDispatcher.invoke(
     noinline block: suspend CoroutineScope.() -> T
 ): T = withContext(this, block)
+
+internal fun <T, R> startCoroutineImpl(
+    start: CoroutineStart,
+    coroutine: AbstractCoroutine<T>,
+    receiver: R,
+    block: suspend R.() -> T
+) = when (start) {
+    CoroutineStart.DEFAULT -> block.startCoroutineCancellable(receiver, coroutine)
+    CoroutineStart.ATOMIC -> block.startCoroutine(receiver, coroutine)
+    CoroutineStart.UNDISPATCHED -> block.startCoroutineUndispatched(receiver, coroutine)
+    CoroutineStart.LAZY -> Unit // will start lazily
+}
+
+// --------------- Kotlin/Native specialization hooks ---------------
+
+// todo: impl a separate startCoroutineCancellable as a fast-path for startCoroutine(DEFAULT, ...)
+internal expect fun <T, R> startCoroutine(
+    start: CoroutineStart,
+    coroutine: AbstractCoroutine<T>,
+    receiver: R,
+    block: suspend R.() -> T
+)
 
 // --------------- implementation ---------------
 
@@ -186,12 +206,10 @@ private open class StandaloneCoroutine(
 
 private class LazyStandaloneCoroutine(
     parentContext: CoroutineContext,
-    block: suspend CoroutineScope.() -> Unit
+    private val block: suspend CoroutineScope.() -> Unit
 ) : StandaloneCoroutine(parentContext, active = false) {
-    private val continuation = block.createCoroutineUnintercepted(this, this)
-
     override fun onStart() {
-        continuation.startCoroutineCancellable(this)
+        startCoroutine(CoroutineStart.DEFAULT, this, this, block)
     }
 }
 
@@ -214,7 +232,7 @@ private const val SUSPENDED = 1
 private const val RESUMED = 2
 
 // Used by withContext when context dispatcher changes
-private class DispatchedCoroutine<in T>(
+internal class DispatchedCoroutine<in T>(
     context: CoroutineContext,
     uCont: Continuation<T>
 ) : ScopeCoroutine<T>(context, uCont) {
@@ -251,7 +269,7 @@ private class DispatchedCoroutine<in T>(
     override fun afterResume(state: Any?) {
         if (tryResume()) return // completed before getResult invocation -- bail out
         // Resume in a cancellable way because we have to switch back to the original dispatcher
-        uCont.intercepted().resumeCancellableWith(recoverResult(state, uCont))
+        uCont.shareableInterceptedResumeCancellableWith(recoverResult(state, uCont))
     }
 
     fun getResult(): Any? {

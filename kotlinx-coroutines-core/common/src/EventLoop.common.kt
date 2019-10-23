@@ -229,8 +229,8 @@ internal abstract class EventLoopImplBase: EventLoopImplPlatform(), Delay {
         val timeNanos = delayToNanos(timeMillis)
         if (timeNanos < MAX_DELAY_NS) {
             val now = nanoTime()
-            DelayedResumeTask(now + timeNanos, continuation).also { task ->
-                continuation.disposeOnCancellation(task)
+            DelayedResumeTask(now + timeNanos, continuation, asShareable()).also { task ->
+                continuation.disposeOnCancellation(task.asShareable()) // todo: memory leak
                 schedule(now, task)
             }
         }
@@ -474,15 +474,17 @@ internal abstract class EventLoopImplBase: EventLoopImplPlatform(), Delay {
             _heap = DISPOSED_TASK // never add again to any heap
         }
 
-        override fun toString(): String = "Delayed[nanos=$nanoTime]"
+        override fun toString(): String = "Delayed@$hexAddress[nanos=$nanoTime]"
     }
 
-    private inner class DelayedResumeTask(
+    private class DelayedResumeTask(
         nanoTime: Long,
-        private val cont: CancellableContinuation<Unit>
+        private val cont: CancellableContinuation<Unit>,
+        private val dispatcher: CoroutineDispatcher
     ) : DelayedTask(nanoTime) {
-        override fun run() { with(cont) { resumeUndispatched(Unit) } }
-        override fun toString(): String = super.toString() + cont.toString()
+        override fun run() {
+            with(cont) { dispatcher.resumeUndispatched(Unit) }
+        }
     }
 
     private class DelayedRunnableTask(
@@ -490,7 +492,6 @@ internal abstract class EventLoopImplBase: EventLoopImplPlatform(), Delay {
         private val block: Runnable
     ) : DelayedTask(nanoTime) {
         override fun run() { block.run() }
-        override fun toString(): String = super.toString() + block.toString()
     }
 
     /**

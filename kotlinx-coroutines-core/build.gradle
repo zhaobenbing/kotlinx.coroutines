@@ -52,6 +52,13 @@ kotlin {
         }
     }
 
+// :todo: need memory leak detector
+//    targets {
+//        macosX64("macosX64") {
+//            binaries.getTest("DEBUG").freeCompilerArgs += ["-e", "kotlin.native.internal.test.mainNoExit"]
+//        }
+//    }
+
     configure(targets) {
         def targetName = it.name
         compilations.all { compilation ->

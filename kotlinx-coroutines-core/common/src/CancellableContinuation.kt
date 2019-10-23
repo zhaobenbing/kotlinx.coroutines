@@ -235,8 +235,10 @@ internal suspend inline fun <T> suspendAtomicCancellableCoroutineReusable(
     }
 
 internal fun <T> getOrCreateCancellableContinuation(delegate: Continuation<T>): CancellableContinuationImpl<T> {
+    // todo: Reuse is not support on Kotlin/Native due to platform peculiarities making it had to properly
+    // split DispatchedContinuation / CancellableContinuationImpl state across workers.
     // If used outside of our dispatcher
-    if (delegate !is DispatchedContinuation<T>) {
+    if (delegate !is DispatchedContinuation<T> || !isReuseSupportedPlatform()) {
         return CancellableContinuationImpl(delegate, resumeMode = MODE_ATOMIC_DEFAULT)
     }
     /*
