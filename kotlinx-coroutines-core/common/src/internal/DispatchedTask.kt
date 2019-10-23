@@ -33,8 +33,8 @@ internal abstract class DispatchedTask<in T>(
 
     public final override fun run() {
         val taskContext = this.taskContext
-        var fatalException: Throwable? = null
-        try {
+//        var fatalException: Throwable? = null
+//        try {
             val delegate = delegate as DispatchedContinuation<T>
             val continuation = delegate.continuation
             val context = continuation.context
@@ -56,13 +56,13 @@ internal abstract class DispatchedTask<in T>(
                     else continuation.resume(getSuccessfulResult(state))
                 }
             }
-        } catch (e: Throwable) {
-            // This instead of runCatching to have nicer stacktrace and debug experience
-            fatalException = e
-        } finally {
-            val result = runCatching { taskContext.afterTask() }
-            handleFatalException(fatalException, result.exceptionOrNull())
-        }
+//        } catch (e: Throwable) {
+//            // This instead of runCatching to have nicer stacktrace and debug experience
+//            fatalException = e
+//        } finally {
+//            val result = runCatching { taskContext.afterTask() }
+//            handleFatalException(fatalException, result.exceptionOrNull())
+//        }
     }
 
     /**

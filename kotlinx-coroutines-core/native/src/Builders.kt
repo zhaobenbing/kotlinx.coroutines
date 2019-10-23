@@ -5,8 +5,11 @@
 package kotlinx.coroutines
 
 import kotlinx.cinterop.*
+import kotlinx.coroutines.intrinsics.*
 import platform.posix.*
 import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
+import kotlin.native.concurrent.*
 
 /**
  * Runs new coroutine and **blocks** current thread _interruptibly_ until its completion.
@@ -37,7 +40,7 @@ public fun <T> runBlocking(context: CoroutineContext = EmptyCoroutineContext, bl
     if (contextInterceptor == null) {
         // create or use private event loop if no dispatcher is specified
         eventLoop = ThreadLocalEventLoop.eventLoop
-        newContext = GlobalScope.newCoroutineContext(context + eventLoop)
+        newContext = GlobalScope.newCoroutineContext(context + eventLoop.asShareable())
     } else {
         // See if context's interceptor is an event loop that we shall use (to support TestContext)
         // or take an existing thread-local event loop if present to avoid blocking it (but don't create one)
@@ -45,29 +48,28 @@ public fun <T> runBlocking(context: CoroutineContext = EmptyCoroutineContext, bl
             ?: ThreadLocalEventLoop.currentOrNull()
         newContext = GlobalScope.newCoroutineContext(context)
     }
-    val coroutine = BlockingCoroutine<T>(newContext, eventLoop)
+    val coroutine = BlockingCoroutine<T>(newContext)
     coroutine.start(CoroutineStart.DEFAULT, coroutine, block)
-    return coroutine.joinBlocking()
+    return coroutine.joinBlocking(eventLoop)
 }
 
 private class BlockingCoroutine<T>(
-    parentContext: CoroutineContext,
-    private val eventLoop: EventLoop?
+    parentContext: CoroutineContext
 ) : AbstractCoroutine<T>(parentContext, true) {
     override val isScopedCoroutine: Boolean get() = true
 
     @Suppress("UNCHECKED_CAST")
-    fun joinBlocking(): T = memScoped {
+    fun joinBlocking(eventLoop: EventLoop?): T = memScoped {
         try {
             eventLoop?.incrementUseCount()
+            val worker = Worker.current
             val timespec = alloc<timespec>()
             while (true) {
+                worker.processQueue()
                 val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE
                 // note: process next even may loose unpark flag, so check if completed before parking
                 if (isCompleted) break
-                timespec.tv_sec = (parkNanos / 1000000000L).convert() // 1e9 ns -> sec
-                timespec.tv_nsec = (parkNanos % 1000000000L).convert() // % 1e9
-                nanosleep(timespec.ptr, null)
+                parkNanos(timespec, parkNanos)
             }
         } finally { // paranoia
             eventLoop?.decrementUseCount()
@@ -76,5 +78,76 @@ private class BlockingCoroutine<T>(
         val state = state
         (state as? CompletedExceptionally)?.let { throw it.cause }
         state as T
+    }
+}
+
+private const val MAX_PARK_NS = 100_000L // 100 us
+
+internal fun parkNanos(timespec: timespec, parkNanos: Long) {
+    val nanos = parkNanos.coerceAtMost(MAX_PARK_NS)
+    timespec.tv_sec = (nanos / 1000000000L).convert() // 1e9 ns -> sec
+    timespec.tv_nsec = (nanos % 1000000000L).convert() // % 1e9
+    nanosleep(timespec.ptr, null)
+}
+
+internal actual fun <T> startDispatchedCoroutine(
+    newInterceptor: ContinuationInterceptor?,
+    newContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> T,
+    uCont: Continuation<T>
+): DispatchedCoroutine<T> {
+    if (newInterceptor is WorkerCoroutineDispatcher) {
+        val newWorker = newInterceptor.worker
+        val curWorker = Worker.current
+        if (newWorker != curWorker) {
+            val stable = ShareableContinuation(uCont, curWorker)
+            val coroutine = DispatchedCoroutine(newContext, stable)
+            coroutine.initParentJob()
+            coroutine.freeze()
+            block.freeze()
+            newWorker.execute(TransferMode.SAFE, {
+                BlockCoroutine(block, coroutine)
+            }) {
+                it.block.startCoroutineCancellable(it.coroutine, it.coroutine)
+            }
+            return coroutine
+        }
+    }
+    val coroutine = DispatchedCoroutine(newContext, uCont)
+    coroutine.initParentJob()
+    block.startCoroutineCancellable(coroutine, coroutine)
+    return coroutine
+}
+
+private class BlockCoroutine<T>(val block: suspend CoroutineScope.() -> T, val coroutine: DispatchedCoroutine<T>)
+
+internal actual fun <T> Continuation<T>.resumeInterceptedCancellableWith(result: Result<T>) {
+    if (this is ShareableContinuation<T> && Worker.current != worker) {
+        result.freeze() // transferring result back -- it must be frozen
+        worker.execute(TransferMode.SAFE, { RefResult(ref, result) }) {
+            it.ref.get().intercepted().resumeCancellableWith(it.result)
+        }
+    } else {
+        intercepted().resumeCancellableWith(result)
+    }
+}
+
+@Suppress("RESULT_CLASS_IN_RETURN_TYPE")
+private class RefResult<T>(val ref: StableRef<Continuation<T>>, val result: Result<T>)
+
+private class ShareableContinuation<T>(
+    uCont: Continuation<T>,
+    val worker: Worker
+) : Continuation<T> {
+    val ref = StableRef.create(uCont)
+    override val context: CoroutineContext = uCont.context
+
+    init { freeze() }
+
+    override fun resumeWith(result: Result<T>) {
+        check(Worker.current == worker) { "Cannot be resumed in intercepted way from another worker" }
+        val uCont = ref.get()
+        ref.dispose()
+        uCont.resumeWith(result)
     }
 }

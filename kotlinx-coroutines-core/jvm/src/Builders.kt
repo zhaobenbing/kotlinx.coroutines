@@ -7,8 +7,10 @@
 
 package kotlinx.coroutines
 
+import kotlinx.coroutines.intrinsics.*
 import java.util.concurrent.locks.*
 import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 /**
  * Runs a new coroutine and **blocks** the current thread _interruptibly_ until its completion.
@@ -92,4 +94,21 @@ private class BlockingCoroutine<T>(
         (state as? CompletedExceptionally)?.let { throw it.cause }
         return state as T
     }
+}
+
+internal actual fun <T> startDispatchedCoroutine(
+    newInterceptor: ContinuationInterceptor?,
+    newContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> T,
+    uCont: Continuation<T>
+): DispatchedCoroutine<T> {
+    val coroutine = DispatchedCoroutine(newContext, uCont)
+    coroutine.initParentJob()
+    block.startCoroutineCancellable(coroutine, coroutine)
+    return coroutine
+}
+
+@Suppress("NOTHING_TO_INLINE") // Save an entry on call stack
+internal actual inline fun <T> Continuation<T>.resumeInterceptedCancellableWith(result: Result<T>) {
+    intercepted().resumeCancellableWith(result)
 }

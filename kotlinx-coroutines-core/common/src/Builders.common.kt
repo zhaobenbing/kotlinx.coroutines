@@ -147,7 +147,8 @@ public suspend fun <T> withContext(
     }
     // FAST PATH #2 -- the new dispatcher is the same as the old one (something else changed)
     // `equals` is used by design (see equals implementation is wrapper context like ExecutorCoroutineDispatcher)
-    if (newContext[ContinuationInterceptor] == oldContext[ContinuationInterceptor]) {
+    val newInterceptor = newContext[ContinuationInterceptor]
+    if (newInterceptor == oldContext[ContinuationInterceptor]) {
         val coroutine = UndispatchedCoroutine(newContext, uCont)
         // There are changes in the context, so this thread needs to be updated
         withCoroutineContext(newContext, null) {
@@ -155,11 +156,16 @@ public suspend fun <T> withContext(
         }
     }
     // SLOW PATH -- use new dispatcher
-    val coroutine = DispatchedCoroutine(newContext, uCont)
-    coroutine.initParentJob()
-    block.startCoroutineCancellable(coroutine, coroutine)
+    val coroutine = startDispatchedCoroutine(newInterceptor, newContext, block, uCont)
     coroutine.getResult()
 }
+
+internal expect fun <T> startDispatchedCoroutine(
+    newInterceptor: ContinuationInterceptor?,
+    newContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> T,
+    uCont: Continuation<T>
+): DispatchedCoroutine<T> 
 
 /**
  * Calls the specified suspending block with the given [CoroutineDispatcher], suspends until it
@@ -214,7 +220,7 @@ private const val SUSPENDED = 1
 private const val RESUMED = 2
 
 // Used by withContext when context dispatcher changes
-private class DispatchedCoroutine<in T>(
+internal class DispatchedCoroutine<in T>(
     context: CoroutineContext,
     uCont: Continuation<T>
 ) : ScopeCoroutine<T>(context, uCont) {
@@ -251,7 +257,7 @@ private class DispatchedCoroutine<in T>(
     override fun afterResume(state: Any?) {
         if (tryResume()) return // completed before getResult invocation -- bail out
         // Resume in a cancellable way because we have to switch back to the original dispatcher
-        uCont.intercepted().resumeCancellableWith(recoverResult(state, uCont))
+        uCont.resumeInterceptedCancellableWith(recoverResult(state, uCont))
     }
 
     fun getResult(): Any? {
@@ -263,3 +269,5 @@ private class DispatchedCoroutine<in T>(
         return state as T
     }
 }
+
+internal expect fun <T> Continuation<T>.resumeInterceptedCancellableWith(result: Result<T>)
