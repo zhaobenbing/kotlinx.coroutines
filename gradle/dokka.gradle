@@ -20,6 +20,10 @@ configurations {
 
 apply plugin: 'org.jetbrains.dokka'
 
+repositories {
+    mavenLocal()
+}
+
 tasks.withType(dokka.getClass()) {
     jdkVersion = 8
     includes = ['README.md']

@@ -5,6 +5,7 @@
 repositories {
     google()
     // TODO Remove once R8 is updated to a 1.6.x version.
+    mavenLocal()
     maven {
         url "http://storage.googleapis.com/r8-releases/raw/master"
         metadataSources {
