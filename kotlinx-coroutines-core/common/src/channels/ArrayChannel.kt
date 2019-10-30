@@ -4,7 +4,6 @@
 
 package kotlinx.coroutines.channels
 
-import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.internal.*
 import kotlinx.coroutines.selects.*
@@ -29,24 +28,20 @@ internal open class ArrayChannel<E>(
         require(capacity >= 1) { "ArrayChannel capacity must be at least 1, but $capacity was specified" }
     }
 
-    private val lock = ReentrantLock()
     /*
-     * Guarded by lock.
-     * Allocate minimum of capacity and 16 to avoid excess memory pressure for large channels when it's not necessary.
+     * Allocate minimum of capacity and 8 to avoid excess memory pressure for large channels when it's not necessary.
      */
-    private var buffer: Array<Any?> = arrayOfNulls<Any?>(min(capacity, 8))
-    private var head: Int = 0
-    private var size = 0 // Invariant: size <= capacity
+    private val state = ArrayChannelState(min(capacity, 8))
 
     protected final override val isBufferAlwaysEmpty: Boolean get() = false
-    protected final override val isBufferEmpty: Boolean get() = lock.withLock { size == 0 }
+    protected final override val isBufferEmpty: Boolean get() = state.withLock { size == 0 }
     protected final override val isBufferAlwaysFull: Boolean get() = false
-    protected final override val isBufferFull: Boolean get() = lock.withLock { size == capacity }
+    protected final override val isBufferFull: Boolean get() = state.withLock { size == capacity }
 
     // result is `OFFER_SUCCESS | OFFER_FAILED | Closed`
     protected override fun offerInternal(element: E): Any {
         var receive: ReceiveOrClosed<E>? = null
-        lock.withLock {
+        state.withLock {
             val size = this.size
             closedForSend?.let { return it }
             if (size < capacity) {
@@ -68,8 +63,8 @@ internal open class ArrayChannel<E>(
                         }
                     }
                 }
-                ensureCapacity(size)
-                buffer[(head + size) % buffer.size] = element // actually queue element
+                ensureCapacity(size, capacity)
+                setBufferAt((head + size) % bufferSize, element) // actually queue element
                 return OFFER_SUCCESS
             }
             // size == capacity: full
@@ -83,7 +78,7 @@ internal open class ArrayChannel<E>(
     // result is `ALREADY_SELECTED | OFFER_SUCCESS | OFFER_FAILED | Closed`
     protected override fun offerSelectInternal(element: E, select: SelectInstance<*>): Any {
         var receive: ReceiveOrClosed<E>? = null
-        lock.withLock {
+        state.withLock {
             val size = this.size
             closedForSend?.let { return it }
             if (size < capacity) {
@@ -115,8 +110,8 @@ internal open class ArrayChannel<E>(
                     this.size = size // restore size
                     return ALREADY_SELECTED
                 }
-                ensureCapacity(size)
-                buffer[(head + size) % buffer.size] = element // actually queue element
+                ensureCapacity(size, capacity)
+                setBufferAt((head + size) % bufferSize, element) // actually queue element
                 return OFFER_SUCCESS
             }
             // size == capacity: full
@@ -127,30 +122,17 @@ internal open class ArrayChannel<E>(
         return receive!!.offerResult
     }
 
-    // Guarded by lock
-    private fun ensureCapacity(currentSize: Int) {
-        if (currentSize >= buffer.size) {
-            val newSize = min(buffer.size * 2, capacity)
-            val newBuffer = arrayOfNulls<Any?>(newSize)
-            for (i in 0 until currentSize) {
-                newBuffer[i] = buffer[(head + i) % buffer.size]
-            }
-            buffer = newBuffer
-            head = 0
-        }
-    }
-
     // result is `E | POLL_FAILED | Closed`
     protected override fun pollInternal(): Any? {
         var send: Send? = null
         var resumed = false
         var result: Any? = null
-        lock.withLock {
+        state.withLock {
             val size = this.size
             if (size == 0) return closedForSend ?: POLL_FAILED // when nothing can be read from buffer
             // size > 0: not empty -- retrieve element
-            result = buffer[head]
-            buffer[head] = null
+            result = getBufferAt(head)
+            setBufferAt(head, null)
             this.size = size - 1 // update size before checking queue (!!!)
             // check for senders that were waiting on full queue
             var replacement: Any? = POLL_FAILED
@@ -168,9 +150,9 @@ internal open class ArrayChannel<E>(
             }
             if (replacement !== POLL_FAILED && replacement !is Closed<*>) {
                 this.size = size // restore size
-                buffer[(head + size) % buffer.size] = replacement
+                setBufferAt((head + size) % bufferSize, replacement)
             }
-            head = (head + 1) % buffer.size
+            head = (head + 1) % bufferSize
         }
         // complete send the we're taken replacement from
         if (resumed)
@@ -183,12 +165,12 @@ internal open class ArrayChannel<E>(
         var send: Send? = null
         var success = false
         var result: Any? = null
-        lock.withLock {
+        state.withLock {
             val size = this.size
             if (size == 0) return closedForSend ?: POLL_FAILED
             // size > 0: not empty -- retrieve element
-            result = buffer[head]
-            buffer[head] = null
+            result = getBufferAt(head)
+            setBufferAt(head, null)
             this.size = size - 1 // update size before checking queue (!!!)
             // check for senders that were waiting on full queue
             var replacement: Any? = POLL_FAILED
@@ -207,7 +189,7 @@ internal open class ArrayChannel<E>(
                         failure === RETRY_ATOMIC -> {} // retry
                         failure === ALREADY_SELECTED -> {
                             this.size = size // restore size
-                            buffer[head] = result // restore head
+                            setBufferAt(head, result) // restore head
                             return failure
                         }
                         failure is Closed<*> -> {
@@ -222,16 +204,16 @@ internal open class ArrayChannel<E>(
             }
             if (replacement !== POLL_FAILED && replacement !is Closed<*>) {
                 this.size = size // restore size
-                buffer[(head + size) % buffer.size] = replacement
+                setBufferAt((head + size) % bufferSize, replacement)
             } else {
                 // failed to poll or is already closed --> let's try to select receiving this element from buffer
                 if (!select.trySelect()) { // :todo: move trySelect completion outside of lock
                     this.size = size // restore size
-                    buffer[head] = result // restore head
+                    setBufferAt(head, result) // restore head
                     return ALREADY_SELECTED
                 }
             }
-            head = (head + 1) % buffer.size
+            head = (head + 1) % bufferSize
         }
         // complete send the we're taken replacement from
         if (success)
@@ -243,10 +225,10 @@ internal open class ArrayChannel<E>(
     override fun onCancelIdempotent(wasClosed: Boolean) {
         // clear buffer first, but do not wait for it in helpers
         if (wasClosed) {
-            lock.withLock {
+            state.withLock {
                 repeat(size) {
-                    buffer[head] = 0
-                    head = (head + 1) % buffer.size
+                    setBufferAt(head, null)
+                    head = (head + 1) % bufferSize
                 }
                 size = 0
             }
@@ -258,5 +240,5 @@ internal open class ArrayChannel<E>(
     // ------ debug ------
 
     override val bufferDebugString: String
-        get() = "(buffer:capacity=$capacity,size=$size)"
+        get() = state.withLock { "(buffer:capacity=$capacity,size=$size)" }
 }

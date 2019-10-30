@@ -95,6 +95,9 @@ class WorkerDispatcherTest : TestBase() {
     @Test
     fun testProduceConsumeUnlimited() = checkProduceConsume(Channel.UNLIMITED)
 
+    @Test
+    fun testProduceConsumeBuffered() = checkProduceConsume(10)
+
     private fun checkProduceConsume(capacity: Int) {
         runTest {
             val atomic = AtomicInt(0) // can be captured & shared
