@@ -4,11 +4,8 @@
 
 package kotlinx.coroutines
 
-import kotlinx.cinterop.*
 import kotlinx.coroutines.internal.*
-import platform.posix.*
 import kotlin.coroutines.*
-import kotlin.coroutines.intrinsics.*
 import kotlin.native.concurrent.*
 
 /**
@@ -59,34 +56,34 @@ private class BlockingCoroutine<T>(
     override val isScopedCoroutine: Boolean get() = true
 
     @Suppress("UNCHECKED_CAST")
-    fun joinBlocking(eventLoop: EventLoop?): T = memScoped {
-        try {
-            eventLoop?.incrementUseCount()
-            val worker = Worker.current
-            val timespec = alloc<timespec>()
-            while (true) {
-                worker.processQueue()
-                val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE
-                // note: process next even may loose unpark flag, so check if completed before parking
-                if (isCompleted) break
-                parkNanos(timespec, parkNanos)
-            }
-        } finally { // paranoia
-            eventLoop?.decrementUseCount()
-        }
+    fun joinBlocking(eventLoop: EventLoop?): T {
+        runEventLoop(eventLoop) { isCompleted }
         // now return result
         val state = state
         (state as? CompletedExceptionally)?.let { throw it.cause }
-        state as T
+        return state as T
     }
 }
 
-private const val MAX_PARK_NS = 100_000L // 100 us
-
-internal fun parkNanos(timespec: timespec, parkNanos: Long) {
-    timespec.tv_sec = 0
-    timespec.tv_nsec = parkNanos.coerceAtMost(MAX_PARK_NS).convert()
-    nanosleep(timespec.ptr, null)
+internal fun runEventLoop(eventLoop: EventLoop?, isCompleted: () -> Boolean) {
+    try {
+        eventLoop?.incrementUseCount()
+        val worker = Worker.current
+        while (!isCompleted()) {
+            val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE
+            if (isCompleted()) break
+            val parkMicros = parkNanos / 1000L
+            // todo: this is a workaround. Park hangs when timeout==0L
+            if (parkMicros == 0L) {
+                worker.processQueue()
+            } else {
+                // todo: this is a workaround. Park does not always work, we have to limit its time
+                worker.park(parkMicros.coerceAtMost(100L), process = true)
+            }
+        }
+    } finally { // paranoia
+        eventLoop?.decrementUseCount()
+    }
 }
 
 // --------------- Kotlin/Native specialization hooks ---------------

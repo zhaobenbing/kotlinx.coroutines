@@ -5,8 +5,6 @@
 package kotlinx.coroutines
 
 import kotlinx.atomicfu.*
-import kotlinx.cinterop.*
-import platform.posix.*
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
 
@@ -32,8 +30,8 @@ public actual abstract class SingleThreadDispatcher : WorkerCoroutineDispatcher(
     internal abstract fun closeAndBlockUntilTermination() // for tests
 }
 
-private class WorkerCoroutineDispatcherImpl(private val name: String) : SingleThreadDispatcher(), Delay {
-    public override val worker = Worker.start() // todo: name
+private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatcher(), Delay {
+    public override val worker = Worker.start(name = name)
     private val isClosed = atomic(false)
     
     init { freeze() }
@@ -42,20 +40,8 @@ private class WorkerCoroutineDispatcherImpl(private val name: String) : SingleTh
         worker.execute(TransferMode.SAFE, { this }) { it.run() }
     }
 
-    fun run() = memScoped {
-        val eventLoop = ThreadLocalEventLoop.eventLoop
-        val timespec = alloc<timespec>()
-        try {
-            eventLoop.incrementUseCount()
-            while (true) {
-                worker.processQueue()
-                val parkNanos = eventLoop.processNextEvent()
-                if (isClosed.value) break
-                parkNanos(timespec, parkNanos) // todo: park & process
-            }
-        } finally { // paranoia
-            eventLoop.decrementUseCount()
-        }
+    fun run() {
+        runEventLoop(ThreadLocalEventLoop.eventLoop) { isClosed.value }
     }
 
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
