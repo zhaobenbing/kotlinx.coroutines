@@ -16,3 +16,5 @@ internal expect fun <T> Continuation<T>.useLocal() : Continuation<T>
 internal expect fun <T> Continuation<T>.shareableInterceptedResumeCancellableWith(result: Result<T>)
 internal expect fun <T> CancellableContinuationImpl<T>.shareableResume(delegate: Continuation<T>, useMode: Int)
 internal expect fun isReuseSupportedInPlatform(): Boolean
+internal expect fun <T> ArrayList<T>.addOrUpdate(element: T, update: (ArrayList<T>) -> Unit)
+internal expect fun <T> ArrayList<T>.addOrUpdate(index: Int, element: T, update: (ArrayList<T>) -> Unit)

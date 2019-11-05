@@ -47,21 +47,8 @@ class ParkStressTest {
     }
 }
 
-private fun randomWait() {
-    val n = Random.nextInt(1000)
-    if (n < 100) return // no wait
-    repeat(n) {
-        BlackHole.sink *= 3
-    }
-    if (n > 900) sched_yield()
-}
-
 @ThreadLocal
 private object TaskCounter {
     var counter = 0
 }
 
-@ThreadLocal
-private object BlackHole {
-    var sink = 1
-}

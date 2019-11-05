@@ -14,7 +14,7 @@ import kotlin.coroutines.*
  * Instances of [ExecutorCoroutineDispatcher] should be closed by the owner of the dispatcher.
  *
  * This class is generally used as a bridge between coroutine-based API and
- * asynchronous API which requires instance of the [Executor].
+ * asynchronous API that requires an instance of the [Executor].
  */
 public abstract class ExecutorCoroutineDispatcher: CoroutineDispatcher(), Closeable {
     /**
@@ -23,6 +23,14 @@ public abstract class ExecutorCoroutineDispatcher: CoroutineDispatcher(), Closea
      * It may throw an exception if this dispatcher is global and cannot be closed.
      */
     public abstract override fun close()
+
+    /**
+     * Closes this coroutine dispatcher, shuts down its executor, and blocks until its termination.
+     * Only to be used by tests.
+     */
+    internal open fun closeAndBlockUntilTermination() {
+        close()
+    }
 
     /**
      * Underlying executor of current [CoroutineDispatcher].
@@ -120,6 +128,13 @@ internal abstract class ExecutorCoroutineDispatcherBase : ExecutorCoroutineDispa
 
     override fun close() {
         (executor as? ExecutorService)?.shutdown()
+    }
+
+    internal override fun closeAndBlockUntilTermination() {
+        (executor as? ExecutorService)?.run {
+            shutdown()
+            awaitTermination(10, TimeUnit.SECONDS) // used only for tests
+        }
     }
 
     override fun toString(): String = executor.toString()

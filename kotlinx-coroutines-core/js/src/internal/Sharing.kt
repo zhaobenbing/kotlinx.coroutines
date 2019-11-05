@@ -37,3 +37,11 @@ internal actual inline fun <T> CancellableContinuationImpl<T>.shareableResume(de
 
 @Suppress("NOTHING_TO_INLINE") // Save an entry on call stack
 internal actual inline fun isReuseSupportedInPlatform() = true
+
+internal actual inline fun <T> ArrayList<T>.addOrUpdate(element: T, update: (ArrayList<T>) -> Unit) {
+    add(element)
+}
+
+internal actual inline fun <T> ArrayList<T>.addOrUpdate(index: Int, element: T, update: (ArrayList<T>) -> Unit) {
+    add(index, element)
+}

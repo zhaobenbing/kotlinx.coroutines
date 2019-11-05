@@ -4,6 +4,8 @@
 
 package kotlinx.coroutines
 
+import kotlinx.atomicfu.*
+
 /**
  * This exception gets thrown if an exception is caught while processing [CompletionHandler] invocation for [Job].
  *
@@ -59,8 +61,26 @@ private fun String?.withCause(cause: Throwable?) =
         else -> "$this; caused by $cause"
     }
 
-@Suppress("NOTHING_TO_INLINE")
-internal actual inline fun Throwable.addSuppressedThrowable(other: Throwable) { /* empty */ }
+internal actual fun Throwable.addSuppressedThrowable(other: Throwable) {
+    if (this is SuppressSupportingThrowableImpl) addSuppressed(other)
+}
+
+// "Suppress-supporting throwable" is currently used for tests only
+internal open class SuppressSupportingThrowableImpl : Throwable() {
+    private val _suppressed = atomic<Array<Throwable>?>(null)
+
+    val suppressed: Array<Throwable>
+        get() = _suppressed.value ?: emptyArray()
+    
+    fun addSuppressed(other: Throwable) {
+        _suppressed.update { current ->
+            if (current == null)
+                arrayOf(other)
+            else
+                current + other
+        }
+    }
+}
 
 // For use in tests
 internal actual val RECOVER_STACK_TRACES: Boolean = false

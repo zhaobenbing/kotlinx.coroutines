@@ -15,7 +15,7 @@ class WorkerDispatcherTest : TestBase() {
 
     @AfterTest
     fun tearDown() {
-        dispatcher.close()
+        dispatcher.closeAndBlockUntilTermination()
     }
 
     @Test

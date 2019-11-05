@@ -10,4 +10,7 @@ public expect fun newSingleThreadContext(name: String): SingleThreadDispatcher
 @ExperimentalCoroutinesApi
 public expect abstract class SingleThreadDispatcher : CoroutineDispatcher {
     public abstract fun close()
+
+    // only for tests
+    internal open fun closeAndBlockUntilTermination()
 }

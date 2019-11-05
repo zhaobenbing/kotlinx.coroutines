@@ -20,9 +20,11 @@ internal const val SUCCESS = 1
 internal const val FAILURE = 2
 
 @PublishedApi
+@SharedImmutable
 internal val CONDITION_FALSE: Any = Symbol("CONDITION_FALSE")
 
 @PublishedApi
+@SharedImmutable
 internal val LIST_EMPTY: Any = Symbol("LIST_EMPTY")
 
 /** @suppress **This is unstable API and it is subject to change.** */
@@ -66,7 +68,11 @@ public actual open class LockFreeLinkedListNode {
     internal abstract class CondAddOp(
         @JvmField val newNode: Node
     ) : AtomicOp<Node>() {
-        @JvmField var oldNext: Node? = null
+        private val _oldNext = atomic<Node?>(null)
+
+        var oldNext: Node?
+            get() = _oldNext.value
+            set(value) { _oldNext.value = value }
 
         override fun complete(affected: Node, failure: Any?) {
             val success = failure == null

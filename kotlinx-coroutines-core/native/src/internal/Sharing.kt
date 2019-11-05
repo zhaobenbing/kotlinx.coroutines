@@ -69,6 +69,28 @@ internal actual fun <T> CancellableContinuationImpl<T>.shareableResume(delegate:
 
 internal actual fun isReuseSupportedInPlatform() = false
 
+internal actual inline fun <T> ArrayList<T>.addOrUpdate(element: T, update: (ArrayList<T>) -> Unit) {
+    if (isFrozen) {
+        val list = ArrayList<T>(size + 1)
+        list.addAll(this)
+        list.add(element)
+        update(list)
+    } else {
+        add(element)
+    }
+}
+
+internal actual inline fun <T> ArrayList<T>.addOrUpdate(index: Int, element: T, update: (ArrayList<T>) -> Unit) {
+    if (isFrozen) {
+        val list = ArrayList<T>(size + 1)
+        list.addAll(this)
+        list.add(index, element)
+        update(list)
+    } else {
+        add(index, element)
+    }
+}
+
 private class SharedResult<T : Any, R>(val so: ShareableObject<T>, val result: R)
 private class TaskMode<T>(val task: CancellableContinuationImpl<T>, val useMode: Int)
 

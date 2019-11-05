@@ -1095,15 +1095,20 @@ public open class JobSupport constructor(active: Boolean) : Job, ChildJob, Paren
         // Seals current state and returns list of exceptions
         // guarded by `synchronized(this)`
         fun sealLocked(proposedException: Throwable?): List<Throwable> {
-            val list = when(val eh = exceptionsHolder) { // volatile read
+            var list = when(val eh = exceptionsHolder) { // volatile read
                 null -> allocateList()
                 is Throwable -> allocateList().also { it.add(eh) }
                 is ArrayList<*> -> eh as ArrayList<Throwable>
                 else -> error("State is $eh") // already sealed -- cannot happen
             }
             val rootCause = this.rootCause // volatile read
-            rootCause?.let { list.add(0, it) } // note -- rootCause goes to the beginning
-            if (proposedException != null && proposedException != rootCause) list.add(proposedException)
+            rootCause?.let {
+                // note -- rootCause goes to the beginning
+                list.addOrUpdate(0, it) { list = it }
+            }
+            if (proposedException != null && proposedException != rootCause) {
+                list.addOrUpdate(proposedException) { list = it }
+            }
             exceptionsHolder = SEALED
             return list
         }
@@ -1123,10 +1128,9 @@ public open class JobSupport constructor(active: Boolean) : Job, ChildJob, Paren
                     exceptionsHolder = allocateList().apply {
                         add(eh)
                         add(exception)
-
                     }
                 }
-                is ArrayList<*> -> (eh as ArrayList<Throwable>).add(exception)
+                is ArrayList<*> -> (eh as ArrayList<Throwable>).addOrUpdate(exception) { exceptionsHolder = it }
                 else -> error("State is $eh") // already sealed -- cannot happen
             }
         }

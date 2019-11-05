@@ -27,7 +27,8 @@ public abstract class WorkerCoroutineDispatcher : CoroutineDispatcher() {
 public actual abstract class SingleThreadDispatcher : WorkerCoroutineDispatcher() {
     public actual abstract fun close()
 
-    internal abstract fun closeAndBlockUntilTermination() // for tests
+    // for tests
+    internal actual open fun closeAndBlockUntilTermination() { close() }
 }
 
 private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatcher(), Delay {
