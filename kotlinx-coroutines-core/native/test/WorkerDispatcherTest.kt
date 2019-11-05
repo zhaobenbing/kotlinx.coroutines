@@ -5,6 +5,7 @@
 package kotlinx.coroutines
 
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.flow.*
 import kotlin.native.concurrent.*
 import kotlin.test.*
 
@@ -122,6 +123,22 @@ class WorkerDispatcherTest : TestBase() {
     }
 
     @Test
+    fun testFlowOn() = runTest {
+        expect(1)
+        val flow = flow {
+            expect(3)
+            assertEquals(dispatcher.worker, Worker.current)
+            emit(Data("A"))
+            emit(Data("B"))
+        }.flowOn(dispatcher)
+        expect(2)
+        val result = flow.toList()
+        assertEquals(listOf(Data("A"), Data("B")), result)
+        assertTrue(result.all { it.isFrozen })
+        finish(4)
+    }
+
+    @Test
     fun testWithContextDelay() = runTest {
         expect(1)
         withContext(dispatcher) {
@@ -158,5 +175,5 @@ class WorkerDispatcherTest : TestBase() {
         finish(3)
     }
 
-    private class Data(val s: String)
+    private data class Data(val s: String)
 }
