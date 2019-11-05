@@ -54,7 +54,14 @@ private class BlockingCoroutine<T>(
     parentContext: CoroutineContext
 ) : AbstractCoroutine<T>(parentContext, true) {
     override val isScopedCoroutine: Boolean get() = true
+    private val worker = Worker.current
 
+    override fun afterCompletion(state: Any?) {
+        // wake up blocked worker
+        if (Worker.current != worker)
+            worker.execute(TransferMode.SAFE, {}) {} // send an empty task
+    }
+    
     @Suppress("UNCHECKED_CAST")
     fun joinBlocking(eventLoop: EventLoop?): T {
         runEventLoop(eventLoop) { isCompleted }
@@ -72,14 +79,8 @@ internal fun runEventLoop(eventLoop: EventLoop?, isCompleted: () -> Boolean) {
         while (!isCompleted()) {
             val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE
             if (isCompleted()) break
-            val parkMicros = parkNanos / 1000L
-            // todo: this is a workaround. Park hangs when timeout==0L
-            if (parkMicros == 0L) {
-                worker.processQueue()
-            } else {
-                // todo: this is a workaround. Park does not always work, we have to limit its time
-                worker.park(parkMicros.coerceAtMost(100L), process = true)
-            }
+            // Note: park takes timeout in microseconds
+            worker.park(parkNanos / 1000L, process = true)
         }
     } finally { // paranoia
         eventLoop?.decrementUseCount()
