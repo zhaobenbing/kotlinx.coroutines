@@ -23,7 +23,7 @@ internal actual fun CoroutineDispatcher.asShareable(): CoroutineDispatcher = whe
 
 internal actual fun <T> Continuation<T>.asShareable() : Continuation<T> = when (this) {
     is ShareableContinuation<T> -> this
-    else -> ShareableContinuation(this, Worker.current)
+    else -> ShareableContinuation(this)
 }
 
 internal actual fun <T> Continuation<T>.asLocal() : Continuation<T> = when (this) {
@@ -43,23 +43,22 @@ internal actual fun <T> Continuation<T>.useLocal() : Continuation<T> = when (thi
 
 internal actual fun <T> Continuation<T>.shareableInterceptedResumeCancellableWith(result: Result<T>) {
     this as ShareableContinuation<T> // must have been shared
-    if (Worker.current == worker) {
+    if (currentThread() == thread) {
         useRef().intercepted().resumeCancellableWith(result)
     } else {
-        result.freeze() // transferring result back -- it must be frozen
-        worker.execute(TransferMode.SAFE, { SharedResult(this, result) }) {
-            it.so.useRef().intercepted().resumeCancellableWith(it.result)
+        thread.execute {
+            useRef().intercepted().resumeCancellableWith(result)
         }
     }
 }
 
 internal actual fun <T> CancellableContinuationImpl<T>.shareableResume(delegate: Continuation<T>, useMode: Int) {
     if (delegate is ShareableContinuation) {
-        if (Worker.current == delegate.worker) {
+        if (currentThread() == delegate.thread) {
             resumeImpl(delegate.useRef(), useMode)
         } else {
-            delegate.worker.execute(TransferMode.SAFE, { TaskMode(this, useMode) }) {
-                it.task.resumeImpl((it.task.delegate as ShareableContinuation).useRef(), it.useMode)
+            delegate.thread.execute {
+                resumeImpl(delegate.useRef(), useMode)
             }
         }
         return
@@ -91,51 +90,48 @@ internal actual inline fun <T> ArrayList<T>.addOrUpdate(index: Int, element: T, 
     }
 }
 
-private class SharedResult<T : Any, R>(val so: ShareableObject<T>, val result: R)
-private class TaskMode<T>(val task: CancellableContinuationImpl<T>, val useMode: Int)
+private open class ShareableObject<T : Any>(obj: T) {
+    val thread: Thread = currentThread()
 
-private open class ShareableObject<T : Any>(obj: T, val worker: Worker) {
     // todo: this is best effort (fail-fast) double-dispose protection, does not provide memory safety guarantee
     private val _ref = atomic<StableRef<T>?>(StableRef.create(obj))
 
     fun localRef(): T {
-        val current = Worker.current
-        if (current != worker) error("Can be used only from $worker but now in $current")
+        val current = currentThread()
+        if (current != thread) error("Can be used only from thread $thread but now in $current")
         val ref = _ref.value ?: error("Ref was already used")
         return ref.get()
     }
 
     fun localRefOrNull(): T? {
-        val current = Worker.current
-        if (current != worker) return null
+        val current = currentThread()
+        if (current != thread) return null
         val ref = _ref.value ?: error("Ref was already used")
         return ref.get()
     }
 
     fun useRef(): T {
-        val current = Worker.current
-        if (current != worker) error("Can be used only from $worker but now in $current")
+        val current = currentThread()
+        if (current != thread) error("Can be used only from $thread but now in $current")
         val ref = _ref.getAndSet(null) ?: error("Ref was already used")
         return ref.get().also { ref.dispose() }
     }
 
-
     override fun toString(): String =
-        "Shareable[${if (Worker.current == worker) _ref.value?.get()?.toString() ?: "used" else "worker!=$worker"}]"
+        "Shareable[${if (currentThread() == thread) _ref.value?.get()?.toString() ?: "used" else "thread!=$thread"}]"
 }
 
 private class ShareableContinuation<T>(
-    cont: Continuation<T>, worker: Worker
-) : ShareableObject<Continuation<T>>(cont, worker), Continuation<T> {
+    cont: Continuation<T>
+) : ShareableObject<Continuation<T>>(cont), Continuation<T> {
     override val context: CoroutineContext = cont.context
 
     override fun resumeWith(result: Result<T>) {
-        if (Worker.current == worker) {
+        if (currentThread() == thread) {
             useRef().resumeWith(result)
         } else {
-            result.freeze()
-            worker.execute(TransferMode.SAFE, { SharedResult(this, result) }) {
-                it.so.useRef().resumeWith(it.result)
+            thread.execute {
+                useRef().resumeWith(result)
             }
         }
     }
@@ -143,13 +139,13 @@ private class ShareableContinuation<T>(
 
 private class ShareableDisposableHandle(
     handle: DisposableHandle
-) : ShareableObject<DisposableHandle>(handle, Worker.current), DisposableHandle {
+) : ShareableObject<DisposableHandle>(handle), DisposableHandle {
     override fun dispose() {
-        if (Worker.current == worker) {
+        if (currentThread() == thread) {
             useRef().dispose()
         } else {
-            worker.execute(TransferMode.SAFE, { this }) {
-                it.useRef().dispose()
+            thread.execute {
+                useRef().dispose()
             }
         }
     }

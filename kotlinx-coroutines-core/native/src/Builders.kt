@@ -96,42 +96,23 @@ internal actual fun <T, R> startCoroutine(
     block: suspend R.() -> T
 ) {
     val newInterceptor = coroutine.context[ContinuationInterceptor]
-    if (newInterceptor is WorkerCoroutineDispatcher) {
-        val newWorker = newInterceptor.worker
-        val curWorker = Worker.current
-        if (newWorker != curWorker) {
+    if (newInterceptor is SingleThreadDispatcher) {
+        val newThread = newInterceptor.thread
+        val curThread = currentThread()
+        if (newThread != curThread) {
             check(start != CoroutineStart.UNDISPATCHED) {
-                "Cannot start undispatched coroutine in another worker $newWorker from current worker $curWorker"
+                "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
             }
-            if (start != CoroutineStart.LAZY) newWorker.executeStartCoroutine(start, coroutine, receiver, block)
+            if (start != CoroutineStart.LAZY) {
+                newThread.execute {
+                    startCoroutineImpl(start, coroutine, receiver, block)
+                }
+            }
             return
         }
     }
     startCoroutineImpl(start, coroutine, receiver, block)
 }
-
-private fun <T, R> Worker.executeStartCoroutine(
-    start: CoroutineStart,
-    coroutine: AbstractCoroutine<T>,
-    receiver: R,
-    block: suspend R.() -> T)
-{
-    coroutine.freeze()
-    receiver.freeze()
-    block.freeze()
-    execute(TransferMode.SAFE, {
-        StartCoroutineBlock(start, coroutine, receiver, block)
-    }) {
-        startCoroutineImpl(it.start, it.coroutine, it.receiver, it.block)
-    }
-}
-
-private class StartCoroutineBlock<T, R>(
-    val start: CoroutineStart,
-    val coroutine: AbstractCoroutine<T>,
-    val receiver: R,
-    val block: suspend R.() -> T
-)
 
 internal actual fun <T, R> saveLazyCoroutine(
     coroutine: AbstractCoroutine<T>,

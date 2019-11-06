@@ -6,12 +6,13 @@ package kotlinx.coroutines
 
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.internal.*
 import kotlin.native.concurrent.*
 import kotlin.test.*
 
 class WorkerDispatcherTest : TestBase() {
     private val dispatcher = newSingleThreadContext("WorkerCoroutineDispatcherTest")
-    private val mainWorker = Worker.current
+    private val mainThread = currentThread()
 
     @AfterTest
     fun tearDown() {
@@ -24,11 +25,11 @@ class WorkerDispatcherTest : TestBase() {
         expect(1)
         val result = withContext(dispatcher) {
             expect(2)
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             atomic.value = 42
             "OK"
         }
-        assertEquals(mainWorker, Worker.current)
+        assertEquals(mainThread, currentThread())
         assertEquals("OK", result)
         assertEquals(42, atomic.value)
         finish(3)
@@ -39,11 +40,11 @@ class WorkerDispatcherTest : TestBase() {
         val atomic = AtomicInt(0) // can be captured & shared
         expect(1)
         val job = launch(dispatcher) {
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             atomic.value = 42
         }
         job.join()
-        assertEquals(mainWorker, Worker.current)
+        assertEquals(mainThread, currentThread())
         assertEquals(42, atomic.value)
         finish(2)
     }
@@ -53,7 +54,7 @@ class WorkerDispatcherTest : TestBase() {
         expect(1)
         val job = launch(dispatcher, start = CoroutineStart.LAZY) {
             expect(3)
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
         }
         expect(2)
         job.join() // lazy start here
@@ -65,12 +66,12 @@ class WorkerDispatcherTest : TestBase() {
         val atomic = AtomicInt(0) // can be captured & shared
         expect(1)
         val deferred = async(dispatcher) {
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             atomic.value = 42
             "OK"
         }
         val result = deferred.await()
-        assertEquals(mainWorker, Worker.current)
+        assertEquals(mainThread, currentThread())
         assertEquals("OK", result)
         assertEquals(42, atomic.value)
         finish(2)
@@ -81,7 +82,7 @@ class WorkerDispatcherTest : TestBase() {
         expect(1)
         val deferred = async(dispatcher, start = CoroutineStart.LAZY) {
             expect(3)
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             "OK"
         }
         expect(2)
@@ -104,7 +105,7 @@ class WorkerDispatcherTest : TestBase() {
             val atomic = AtomicInt(0) // can be captured & shared
             expect(1)
             val channel = produce(dispatcher, capacity) {
-                assertEquals(dispatcher.worker, Worker.current)
+                assertEquals(dispatcher.thread, currentThread())
                 atomic.value = 42
                 expect(2)
                 send(Data("A"))
@@ -112,7 +113,7 @@ class WorkerDispatcherTest : TestBase() {
             }
             val result1 = channel.receive()
             expect(3)
-            assertEquals(mainWorker, Worker.current)
+            assertEquals(mainThread, currentThread())
             assertEquals("A", result1.s)
             assertTrue(result1.isFrozen)
             assertEquals(42, atomic.value)
@@ -127,7 +128,7 @@ class WorkerDispatcherTest : TestBase() {
         expect(1)
         val flow = flow {
             expect(3)
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             emit(Data("A"))
             emit(Data("B"))
         }.flowOn(dispatcher)
@@ -144,7 +145,7 @@ class WorkerDispatcherTest : TestBase() {
         withContext(dispatcher) {
             expect(2)
             delay(10)
-            assertEquals(dispatcher.worker, Worker.current)
+            assertEquals(dispatcher.thread, currentThread())
             expect(3)
         }
         finish(4)

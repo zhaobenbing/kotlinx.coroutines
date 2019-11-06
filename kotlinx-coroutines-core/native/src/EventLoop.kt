@@ -5,6 +5,8 @@
 package kotlinx.coroutines
 
 import kotlinx.cinterop.*
+import kotlinx.coroutines.internal.*
+import kotlinx.coroutines.internal.Thread
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
 import kotlin.system.*
@@ -38,33 +40,37 @@ internal class EventLoopImpl: EventLoopImplBase() {
 
 internal class ShareableEventLoop(
     val ref: StableRef<EventLoopImpl>,
-    override val worker: Worker
-) : WorkerCoroutineDispatcher(), Delay {
+    private val worker: Worker
+) : SingleThreadDispatcher(), Delay {
+    override val thread: Thread = WorkerThread(worker)
+
     init { freeze() }
 
+    override fun close() = error("should not be called")
+
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
-        checkCurrentWorker()
+        checkCurrentThread()
         ref.get().scheduleResumeAfterDelay(timeMillis, continuation)
     }
 
     override fun invokeOnTimeout(timeMillis: Long, block: Runnable): DisposableHandle {
-        checkCurrentWorker()
+        checkCurrentThread()
         return ref.get().invokeOnTimeout(timeMillis, block)
     }
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
-        checkCurrentWorker()
+        checkCurrentThread()
         ref.get().dispatch(context, block)
     }
 
     override fun <T> interceptContinuation(continuation: Continuation<T>): Continuation<T> {
-        checkCurrentWorker()
+        checkCurrentThread()
         return ref.get().interceptContinuation(continuation)
     }
 
     @InternalCoroutinesApi
     override fun releaseInterceptedContinuation(continuation: Continuation<*>) {
-        checkCurrentWorker()
+        checkCurrentThread()
         ref.get().releaseInterceptedContinuation(continuation)
     }
 }
