@@ -10,6 +10,20 @@ apply from: rootProject.file("gradle/compile-js-multiplatform.gradle")
 apply from: rootProject.file("gradle/compile-native-multiplatform.gradle")
 apply from: rootProject.file('gradle/publish-npm-js.gradle')
 
+def defineSourceSet(name, dependsOn, includedIn) {
+    for (suffix in ["Main", "Test"]) {
+        def ss = kotlin.sourceSets.maybeCreate(name + suffix)
+        for (dep in dependsOn) {
+            ss.dependsOn(kotlin.sourceSets[dep + suffix])
+        }
+        for (inc in includedIn) {
+            kotlin.sourceSets[inc + suffix].dependsOn(ss)
+        }
+    }
+}
+
+defineSourceSet("concurrent", ["common"], ["jvm", "native"])
+
 /*
  * All platform plugins and configuration magic happens here instead of build.gradle
  * because JMV-only projects depend on core, thus core should always be initialized before configuration.
@@ -23,18 +37,6 @@ kotlin {
                 implementation "org.jetbrains.kotlinx:atomicfu-common:$atomicfu_version"
             }
         }
-        concurrentMain {
-            dependsOn commonMain
-        }
-        concurrentTest {
-            dependsOn commonTest
-            // todo: it is not needed? why?
-            //dependsOn concurrentMain
-        }
-        jvmMain { dependsOn concurrentMain }
-        jvmTest { dependsOn concurrentTest }
-        nativeMain { dependsOn concurrentMain }
-        nativeTest { dependsOn concurrentTest }
     }
 
     configure(sourceSets) {
