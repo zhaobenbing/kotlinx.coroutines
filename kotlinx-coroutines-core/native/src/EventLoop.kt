@@ -5,8 +5,6 @@
 package kotlinx.coroutines
 
 import kotlinx.cinterop.*
-import kotlinx.coroutines.internal.*
-import kotlinx.coroutines.internal.Thread
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
 import kotlin.system.*
@@ -41,12 +39,10 @@ internal class EventLoopImpl: EventLoopImplBase() {
 internal class ShareableEventLoop(
     val ref: StableRef<EventLoopImpl>,
     private val worker: Worker
-) : SingleThreadDispatcher(), Delay {
+) : CoroutineDispatcher(), ThreadBoundInterceptor, Delay {
     override val thread: Thread = WorkerThread(worker)
 
     init { freeze() }
-
-    override fun close() = error("should not be called")
 
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
         checkCurrentThread()

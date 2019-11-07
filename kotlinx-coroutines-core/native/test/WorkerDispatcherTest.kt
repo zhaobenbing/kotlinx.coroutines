@@ -6,7 +6,6 @@ package kotlinx.coroutines
 
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.internal.*
 import kotlin.native.concurrent.*
 import kotlin.test.*
 

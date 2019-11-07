@@ -5,8 +5,6 @@
 package kotlinx.coroutines
 
 import kotlinx.atomicfu.*
-import kotlinx.coroutines.internal.*
-import kotlinx.coroutines.internal.Thread
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
 
@@ -23,14 +21,9 @@ public actual abstract class SingleThreadDispatcher : CoroutineDispatcher() {
 
     // for tests
     internal actual open fun closeAndBlockUntilTermination() { close() }
-
-    protected fun checkCurrentThread() {
-        val current = currentThread()
-        check(current == thread) { "This dispatcher can be used only from a single thread $thread, but now in $current" }
-    }
 }
 
-private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatcher(), Delay {
+private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatcher(), ThreadBoundInterceptor, Delay {
     private val worker = Worker.start(name = name)
     override val thread = WorkerThread(worker)
     private val isClosed = atomic(false)

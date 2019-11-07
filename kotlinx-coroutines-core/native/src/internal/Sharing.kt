@@ -46,7 +46,7 @@ internal actual fun <T> Continuation<T>.shareableInterceptedResumeCancellableWit
     if (currentThread() == thread) {
         useRef().intercepted().resumeCancellableWith(result)
     } else {
-        thread.execute {
+        thread.executeFrozen {
             useRef().intercepted().resumeCancellableWith(result)
         }
     }
@@ -57,7 +57,7 @@ internal actual fun <T> CancellableContinuationImpl<T>.shareableResume(delegate:
         if (currentThread() == delegate.thread) {
             resumeImpl(delegate.useRef(), useMode)
         } else {
-            delegate.thread.execute {
+            delegate.thread.executeFrozen {
                 resumeImpl(delegate.useRef(), useMode)
             }
         }
@@ -130,7 +130,7 @@ private class ShareableContinuation<T>(
         if (currentThread() == thread) {
             useRef().resumeWith(result)
         } else {
-            thread.execute {
+            thread.executeFrozen {
                 useRef().resumeWith(result)
             }
         }
@@ -144,7 +144,7 @@ private class ShareableDisposableHandle(
         if (currentThread() == thread) {
             useRef().dispose()
         } else {
-            thread.execute {
+            thread.executeFrozen {
                 useRef().dispose()
             }
         }

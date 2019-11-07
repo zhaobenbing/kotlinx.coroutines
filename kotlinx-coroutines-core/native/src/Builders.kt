@@ -75,12 +75,11 @@ private class BlockingCoroutine<T>(
 internal fun runEventLoop(eventLoop: EventLoop?, isCompleted: () -> Boolean) {
     try {
         eventLoop?.incrementUseCount()
-        val worker = Worker.current
+        val thread = currentThread()
         while (!isCompleted()) {
             val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE
             if (isCompleted()) break
-            // Note: park takes timeout in microseconds
-            worker.park(parkNanos / 1000L, process = true)
+            thread.parkNanos(parkNanos)
         }
     } finally { // paranoia
         eventLoop?.decrementUseCount()
@@ -96,7 +95,7 @@ internal actual fun <T, R> startCoroutine(
     block: suspend R.() -> T
 ) {
     val newInterceptor = coroutine.context[ContinuationInterceptor]
-    if (newInterceptor is SingleThreadDispatcher) {
+    if (newInterceptor is ThreadBoundInterceptor) {
         val newThread = newInterceptor.thread
         val curThread = currentThread()
         if (newThread != curThread) {
@@ -104,7 +103,7 @@ internal actual fun <T, R> startCoroutine(
                 "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
             }
             if (start != CoroutineStart.LAZY) {
-                newThread.execute {
+                newThread.executeFrozen {
                     startCoroutineImpl(start, coroutine, receiver, block)
                 }
             }

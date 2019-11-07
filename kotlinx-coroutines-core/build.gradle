@@ -10,19 +10,50 @@ apply from: rootProject.file("gradle/compile-js-multiplatform.gradle")
 apply from: rootProject.file("gradle/compile-native-multiplatform.gradle")
 apply from: rootProject.file('gradle/publish-npm-js.gradle')
 
-def defineSourceSet(name, dependsOn, includedIn) {
+void defineSourceSet(newName, dependsOn, includedInPred) {
     for (suffix in ["Main", "Test"]) {
-        def ss = kotlin.sourceSets.maybeCreate(name + suffix)
+        def newSS = kotlin.sourceSets.maybeCreate(newName + suffix)
         for (dep in dependsOn) {
-            ss.dependsOn(kotlin.sourceSets[dep + suffix])
+            newSS.dependsOn(kotlin.sourceSets[dep + suffix])
         }
-        for (inc in includedIn) {
-            kotlin.sourceSets[inc + suffix].dependsOn(ss)
+        for (curSS in kotlin.sourceSets) {
+            def curName = curSS.name
+            if (curName.endsWith(suffix)) {
+                def prefix = curName.substring(0, curName.length() - suffix.length())
+                if (includedInPred(prefix)) curSS.dependsOn(newSS)
+            }
         }
     }
 }
 
-defineSourceSet("concurrent", ["common"], ["jvm", "native"])
+boolean isNativeDarwin(String name) { return ["ios", "macos", "tvos", "watchos"].any { name.startsWith(it) } }
+boolean isNativeOther(String name) { return ["linux", "mingw"].any { name.startsWith(it) } }
+
+/* TARGETS:
+     js -----------------------------------------------------+
+                                                             |
+                                                             V
+     jvm -------------------------------> concurrent ---> common
+                                              ^
+     ios     \                                |
+     macos   | ---> nativeDarwin ---> native --+
+     tvos    |                         ^
+     watchos /                         |
+                                       |
+     linux  \  ---> nativeOther -------+
+     mingw  /
+ */
+
+defineSourceSet("concurrent", ["common"]) { it in ["jvm", "native"] }
+defineSourceSet("nativeDarwin", ["native"]) { isNativeDarwin(it) }
+defineSourceSet("nativeOther", ["native"]) { isNativeOther(it) }
+
+// todo: This is IDEA kludge, without "fromPresent" the code does not resolve properly
+if (project.ext.ideaActive && isNativeDarwin(project.ext.ideaPreset.name)) {
+    kotlin.targets {
+        fromPreset(project.ext.ideaPreset, 'nativeDarwin')
+    }
+}
 
 /*
  * All platform plugins and configuration magic happens here instead of build.gradle
