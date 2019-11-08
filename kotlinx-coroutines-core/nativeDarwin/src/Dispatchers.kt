@@ -4,6 +4,7 @@
 
 package kotlinx.coroutines
 
+import platform.Foundation.*
 import platform.darwin.*
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
@@ -14,14 +15,16 @@ internal actual fun createMainDispatcher(default: CoroutineDispatcher): MainCoro
 private class DarwinMainDispatcher(
     private val invokeImmediately: Boolean
 ) : MainCoroutineDispatcher(), ThreadBoundInterceptor, Delay {
-    override val thread = mainThread
+    override val thread
+        get() = mainThread
+    
     override val immediate: MainCoroutineDispatcher =
         if (invokeImmediately) this else DarwinMainDispatcher(true)
 
     init { freeze() }
 
     override fun isDispatchNeeded(context: CoroutineContext): Boolean =
-        !invokeImmediately || currentThread() !== mainThread
+        !invokeImmediately || NSThread.isMainThread
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         dispatch_async(dispatch_get_main_queue()) {

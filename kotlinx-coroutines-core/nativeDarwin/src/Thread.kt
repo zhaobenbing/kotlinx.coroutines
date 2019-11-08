@@ -9,17 +9,37 @@ import platform.darwin.*
 import kotlin.native.concurrent.*
 import kotlinx.atomicfu.*
 
-internal actual fun initCurrentThread(): Thread = if (NSThread.isMainThread) mainThread else WorkerThread()
+/**
+ * Initializes the main thread. Must be called from the main thread if the application's interaction
+ * with coroutines API otherwise starts from background threads.
+ */
+@ExperimentalCoroutinesApi
+public fun initMainThread() {
+    println("Initializing main thread!!!")
+    getOrCreateMainThread()
+    println("mainThread = ${_mainThread.value}")
+}
+
+internal actual fun initCurrentThread(): Thread =
+    if (NSThread.isMainThread) mainThread else WorkerThread()
 
 @SharedImmutable
-internal val mainThread: MainThread = MainThread()
+private val _mainThread = AtomicReference<Thread?>(null)
 
-internal class MainThread : WorkerThread() {
+internal val mainThread: Thread get() = _mainThread.value ?: getOrCreateMainThread()
+
+private fun getOrCreateMainThread(): Thread {
+    require(NSThread.isMainThread) {
+        "Coroutines must be initialized from the main thread: call 'initMainThread' from the main thread first"
+    }
+    _mainThread.value?.let { return it }
+    return MainThread().also { _mainThread.value = it }
+}
+
+private class MainThread : WorkerThread() {
     private val posted = atomic(false)
 
-    init {
-        require(NSThread.isMainThread) { "Kotlin runtime must be initialized on the main thread" }
-    }
+    init { freeze() }
 
     override fun execute(block: Runnable) {
         super.execute(block)

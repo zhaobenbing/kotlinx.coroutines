@@ -4,6 +4,7 @@
 
 package kotlinx.coroutines
 
+import kotlinx.coroutines.internal.*
 import kotlin.coroutines.*
 
 private fun takeEventLoop(): EventLoopImpl =
@@ -26,6 +27,7 @@ internal fun loopWasShutDown(): Nothing = error("Cannot execute task because eve
 internal actual fun createDefaultDispatcher(): CoroutineDispatcher =
     DefaultExecutor
 
+@SharedImmutable
 internal actual val DefaultDelay: Delay = DefaultExecutor
 
 public actual fun CoroutineScope.newCoroutineContext(context: CoroutineContext): CoroutineContext {

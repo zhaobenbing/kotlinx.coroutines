@@ -23,7 +23,7 @@ public actual class CompletionHandlerException public actual constructor(
  * **It is not printed to console/log by default uncaught exception handler**.
  * (see [CoroutineExceptionHandler]).
  */
-public actual open class CancellationException actual constructor(message: String?) : IllegalStateException(message)
+public actual open class CancellationException actual constructor(message: String?) :   IllegalStateException(message)
 
 /**
  * Creates a cancellation exception with a specified message and [cause].

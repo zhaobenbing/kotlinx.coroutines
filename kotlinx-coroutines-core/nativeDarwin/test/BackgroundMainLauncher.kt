@@ -9,8 +9,9 @@ import kotlin.native.concurrent.*
 import kotlin.native.internal.test.*
 import kotlin.system.*
 
-// This is a separate entry points for tests
+// This is a separate entry point for tests
 fun mainBackground(args: Array<String>) {
+    initMainThread()
     val worker = Worker.start(name = "main-background")
     worker.execute(TransferMode.SAFE, { args.freeze() }) {
         val result = testLauncherEntryPoint(it)

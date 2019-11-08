@@ -11,8 +11,10 @@ class MainDispatcherTest : TestBase() {
     fun testWithContext() {
         if (mainThread == currentThread()) return // skip if already on the main thread
         runTest {
+            println("1. In background")
             expect(1)
             withContext(Dispatchers.Main) {
+                println("2. In main")
                 expect(2)
                 assertEquals(mainThread, currentThread())
             }
