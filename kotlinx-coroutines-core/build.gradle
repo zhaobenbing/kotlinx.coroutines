@@ -92,6 +92,13 @@ kotlin {
 //        }
 //    }
 
+    // todo: Configure a separate dispatch_main test
+    targets {
+        macosX64 {
+            
+        }
+    }
+
     configure(targets) {
         def targetName = it.name
         compilations.all { compilation ->

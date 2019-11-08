@@ -4,6 +4,7 @@
 
 package kotlinx.coroutines
 
+import platform.darwin.*
 import kotlin.coroutines.*
 import kotlin.native.concurrent.*
 
@@ -19,11 +20,28 @@ private class DarwinMainDispatcher(
 
     init { freeze() }
 
-    override fun dispatch(context: CoroutineContext, block: Runnable) =
-        mainThread.execute(block)
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean =
+        !invokeImmediately || currentThread() !== mainThread
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        dispatch_async(dispatch_get_main_queue()) {
+            block.run()
+        }
+    }
     
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
-        TODO("not implemented")
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, timeMillis), dispatch_get_main_queue()) {
+            continuation.resume(Unit)
+            // todo: dispose
+        }
+    }
+
+    override fun invokeOnTimeout(timeMillis: Long, block: Runnable): DisposableHandle {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, timeMillis), dispatch_get_main_queue()) {
+            block.run()
+        }
+        // todo: dispose
+        return NonDisposableHandle
     }
 
     override fun toString(): String =

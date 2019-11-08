@@ -25,7 +25,7 @@ internal fun currentThread(): Thread = currentThread
 
 internal expect fun initCurrentThread(): Thread
 
-internal data class WorkerThread(val worker: Worker) : Thread() {
+internal open class WorkerThread(val worker: Worker = Worker.current) : Thread() {
     override fun execute(block: Runnable) {
         block.freeze()
         worker.execute(TransferMode.SAFE, { block }) {
@@ -38,6 +38,8 @@ internal data class WorkerThread(val worker: Worker) : Thread() {
         worker.park(timeout / 1000L, process = true)
     }
 
+    override fun equals(other: Any?): Boolean = other is WorkerThread && other.worker == worker
+    override fun hashCode(): Int = worker.hashCode()
     override fun toString(): String = worker.name
 }
 

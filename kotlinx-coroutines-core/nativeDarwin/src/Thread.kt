@@ -9,39 +9,27 @@ import platform.darwin.*
 import kotlin.native.concurrent.*
 import kotlinx.atomicfu.*
 
-internal actual fun initCurrentThread(): Thread =
-    /* if (NSThread.isMainThread) mainThread  else */ WorkerThread(Worker.current)
+internal actual fun initCurrentThread(): Thread = if (NSThread.isMainThread) mainThread else WorkerThread()
 
 @SharedImmutable
 internal val mainThread: MainThread = MainThread()
 
-private const val NOT_PARKED = 0
-private const val PARKED = 1
-private const val SIGNALLED = 2
+internal class MainThread : WorkerThread() {
+    private val posted = atomic(false)
 
-internal class MainThread : Thread() {
-    private val semaphore = dispatch_semaphore_create(0)
-    private val _parked = atomic(NOT_PARKED)
-
-    private var parked: Int
-        get() = _parked.value
-        set(value) { _parked.value = value }
-    
-    override fun execute(block: Runnable) {
-        dispatch_async(dispatch_get_main_queue()) {
-            block.run()
-            if (parked == PARKED) {
-                parked = SIGNALLED
-                dispatch_semaphore_signal(semaphore)
-            }
-        }
+    init {
+        require(NSThread.isMainThread) { "Kotlin runtime must be initialized on the main thread" }
     }
 
-    override fun parkNanos(timeout: Long) {
-        if (parked == NOT_PARKED) parked = PARKED
-        val time = dispatch_time(DISPATCH_TIME_NOW, timeout)
-        val result = dispatch_semaphore_wait(semaphore, time)
-        if (result == 0L || parked == PARKED) parked = NOT_PARKED
+    override fun execute(block: Runnable) {
+        super.execute(block)
+        // post to main queue if needed
+        if (posted.compareAndSet(false, true)) {
+            dispatch_async(dispatch_get_main_queue()) {
+                posted.value = false // next execute will post a fresh task
+                while (worker.processQueue()) { /* process all */ }
+            }
+        }
     }
 
     override fun toString(): String = "MainThread"
