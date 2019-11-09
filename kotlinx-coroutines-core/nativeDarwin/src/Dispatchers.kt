@@ -4,14 +4,18 @@
 
 package kotlinx.coroutines
 
-import platform.Foundation.*
+import kotlinx.cinterop.*
+import platform.CoreFoundation.*
 import platform.darwin.*
 import kotlin.coroutines.*
+import kotlin.native.SharedImmutable
 import kotlin.native.concurrent.*
+import kotlin.native.internal.NativePtr
 
 internal actual fun createMainDispatcher(default: CoroutineDispatcher): MainCoroutineDispatcher =
     DarwinMainDispatcher(false)
 
+@Suppress("EXPERIMENTAL_UNSIGNED_LITERALS")
 private class DarwinMainDispatcher(
     private val invokeImmediately: Boolean
 ) : MainCoroutineDispatcher(), ThreadBoundInterceptor, Delay {
@@ -24,7 +28,7 @@ private class DarwinMainDispatcher(
     init { freeze() }
 
     override fun isDispatchNeeded(context: CoroutineContext): Boolean =
-        !invokeImmediately || NSThread.isMainThread
+        !invokeImmediately || CFRunLoopGetCurrent() == CFRunLoopGetMain()
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         dispatch_async(dispatch_get_main_queue()) {
@@ -33,20 +37,65 @@ private class DarwinMainDispatcher(
     }
     
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, timeMillis), dispatch_get_main_queue()) {
+        val timer = Timer()
+        val timerBlock: TimerBlock = {
+            timer.dispose()
             continuation.resume(Unit)
-            // todo: dispose
         }
+        timer.start(timeMillis, timerBlock)
+        continuation.disposeOnCancellation(timer)
     }
 
     override fun invokeOnTimeout(timeMillis: Long, block: Runnable): DisposableHandle {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, timeMillis), dispatch_get_main_queue()) {
+        val timer = Timer()
+        val timerBlock: TimerBlock = {
+            timer.dispose()
             block.run()
         }
-        // todo: dispose
-        return NonDisposableHandle
+        timer.start(timeMillis, timerBlock)
+        return timer
     }
 
     override fun toString(): String =
         "MainDispatcher${ if(invokeImmediately) "[immediate]" else "" }"
+}
+
+typealias TimerBlock = (CFRunLoopTimerRef?) -> Unit
+
+@SharedImmutable
+private val TIMER_NEW = NativePtr.NULL
+
+@SharedImmutable
+private val TIMER_DISPOSED = NativePtr.NULL.plus(1)
+
+private class Timer : DisposableHandle {
+    private val ref = AtomicNativePtr(TIMER_NEW)
+
+    init { freeze() }
+
+    fun start(timeMillis: Long, timerBlock: TimerBlock) {
+        val fireDate = CFAbsoluteTimeGetCurrent() + timeMillis / 1000.0
+        val timer = CFRunLoopTimerCreateWithHandler(null, fireDate, 0.0, 0uL, 0, timerBlock)
+        CFRunLoopAddTimer(CFRunLoopGetMain(), timer, kCFRunLoopCommonModes)
+        if (!ref.compareAndSet(TIMER_NEW, timer.rawValue)) {
+            // dispose was already called concurrently
+            release(timer)
+        }
+    }
+
+    override fun dispose() {
+        while (true) {
+            val ptr = ref.value
+            if (ptr == TIMER_DISPOSED) return
+            if (ref.compareAndSet(ptr, TIMER_DISPOSED)) {
+                if (ptr != TIMER_NEW) release(interpretCPointer(ptr))
+                return
+            }
+        }
+    }
+
+    private fun release(timer: CFRunLoopTimerRef?) {
+        CFRunLoopRemoveTimer(CFRunLoopGetMain(), timer, kCFRunLoopCommonModes)
+        CFRelease(timer)
+    }
 }
