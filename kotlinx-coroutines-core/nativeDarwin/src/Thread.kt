@@ -11,13 +11,11 @@ import kotlinx.atomicfu.*
 
 /**
  * Initializes the main thread. Must be called from the main thread if the application's interaction
- * with coroutines API otherwise starts from background threads.
+ * with Kotlin runtime and coroutines API otherwise starts from background threads.
  */
 @ExperimentalCoroutinesApi
 public fun initMainThread() {
-    println("Initializing main thread!!!")
     getOrCreateMainThread()
-    println("mainThread = ${_mainThread.value}")
 }
 
 internal actual fun initCurrentThread(): Thread =
@@ -39,16 +37,18 @@ private fun getOrCreateMainThread(): Thread {
 private class MainThread : WorkerThread() {
     private val posted = atomic(false)
 
+    private val processQueueBlock: dispatch_block_t =  {
+        posted.value = false // next execute will post a fresh task
+        while (worker.processQueue()) { /* process all */ }
+    }
+
     init { freeze() }
 
     override fun execute(block: Runnable) {
         super.execute(block)
         // post to main queue if needed
         if (posted.compareAndSet(false, true)) {
-            dispatch_async(dispatch_get_main_queue()) {
-                posted.value = false // next execute will post a fresh task
-                while (worker.processQueue()) { /* process all */ }
-            }
+            dispatch_async(dispatch_get_main_queue(), processQueueBlock)
         }
     }
 

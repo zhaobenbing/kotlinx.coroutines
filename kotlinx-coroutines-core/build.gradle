@@ -92,13 +92,15 @@ kotlin {
 //        }
 //    }
 
-    // Configure a separate dispatch_main test
-    targets.macosX64.binaries {
-        test("background", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
-            freeCompilerArgs += ["-e", "kotlinx.coroutines.mainBackground"]
-//            testRuns.create("testBackgroundRun") {
-//                setExecutionSourceFrom(test)
-//            }
+    // Configure a separate test where code runs in background and main runs CFMainLoop
+    targets.macosX64 {
+        binaries {
+            test("background", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
+                freeCompilerArgs += ["-e", "kotlinx.coroutines.mainBackground"]
+            }
+        }
+        testRuns {
+            background { setExecutionSourceFrom(binaries.backgroundDebugTest) }
         }
     }
 
