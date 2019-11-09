@@ -4,7 +4,6 @@
 
 package kotlinx.coroutines
 
-import platform.Foundation.*
 import platform.darwin.*
 import kotlin.native.concurrent.*
 import kotlinx.atomicfu.*
@@ -19,7 +18,7 @@ public fun initMainThread() {
 }
 
 internal actual fun initCurrentThread(): Thread =
-    if (NSThread.isMainThread) mainThread else WorkerThread()
+    if (isMainThread()) mainThread else WorkerThread()
 
 @SharedImmutable
 private val _mainThread = AtomicReference<Thread?>(null)
@@ -27,7 +26,7 @@ private val _mainThread = AtomicReference<Thread?>(null)
 internal val mainThread: Thread get() = _mainThread.value ?: getOrCreateMainThread()
 
 private fun getOrCreateMainThread(): Thread {
-    require(NSThread.isMainThread) {
+    require(isMainThread()) {
         "Coroutines must be initialized from the main thread: call 'initMainThread' from the main thread first"
     }
     _mainThread.value?.let { return it }

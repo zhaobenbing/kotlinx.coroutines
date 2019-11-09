@@ -8,9 +8,10 @@ import kotlinx.cinterop.*
 import platform.CoreFoundation.*
 import platform.darwin.*
 import kotlin.coroutines.*
-import kotlin.native.SharedImmutable
 import kotlin.native.concurrent.*
 import kotlin.native.internal.NativePtr
+
+internal fun isMainThread(): Boolean = CFRunLoopGetCurrent() == CFRunLoopGetMain()
 
 internal actual fun createMainDispatcher(default: CoroutineDispatcher): MainCoroutineDispatcher =
     DarwinMainDispatcher(false)
@@ -27,8 +28,7 @@ private class DarwinMainDispatcher(
 
     init { freeze() }
 
-    override fun isDispatchNeeded(context: CoroutineContext): Boolean =
-        !invokeImmediately || CFRunLoopGetCurrent() == CFRunLoopGetMain()
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean = !invokeImmediately || isMainThread()
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         dispatch_async(dispatch_get_main_queue()) {
