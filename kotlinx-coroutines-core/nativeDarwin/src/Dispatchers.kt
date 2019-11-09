@@ -19,7 +19,7 @@ internal actual fun createMainDispatcher(default: CoroutineDispatcher): MainCoro
 @Suppress("EXPERIMENTAL_UNSIGNED_LITERALS")
 private class DarwinMainDispatcher(
     private val invokeImmediately: Boolean
-) : MainCoroutineDispatcher(), ThreadBoundInterceptor, Delay {
+) : MainCoroutineDispatcher(), Delay, ThreadBoundInterceptor {
     override val thread
         get() = mainThread
     

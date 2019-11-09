@@ -94,23 +94,26 @@ internal actual fun <T, R> startCoroutine(
     receiver: R,
     block: suspend R.() -> T
 ) {
-    val newInterceptor = coroutine.context[ContinuationInterceptor]
-    if (newInterceptor is ThreadBoundInterceptor) {
-        val newThread = newInterceptor.thread
-        val curThread = currentThread()
-        if (newThread != curThread) {
-            check(start != CoroutineStart.UNDISPATCHED) {
-                "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
-            }
-            if (start != CoroutineStart.LAZY) {
-                newThread.executeFrozen {
-                    startCoroutineImpl(start, coroutine, receiver, block)
-                }
-            }
-            return
+    val curThread = currentThread()
+    val newThread = coroutine.context[ContinuationInterceptor].thread()
+    if (newThread != curThread) {
+        check(start != CoroutineStart.UNDISPATCHED) {
+            "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
         }
+        if (start != CoroutineStart.LAZY) {
+            newThread.executeFrozen {
+                startCoroutineImpl(start, coroutine, receiver, block)
+            }
+        }
+        return
     }
     startCoroutineImpl(start, coroutine, receiver, block)
+}
+
+private fun ContinuationInterceptor?.thread(): Thread = when (this) {
+    null -> Dispatchers.Default.thread()
+    is ThreadBoundInterceptor -> thread
+    else -> currentThread() // fallback
 }
 
 internal actual fun <T, R> saveLazyCoroutine(

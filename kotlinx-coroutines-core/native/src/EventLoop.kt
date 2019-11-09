@@ -39,7 +39,7 @@ internal class EventLoopImpl: EventLoopImplBase() {
 internal class ShareableEventLoop(
     val ref: StableRef<EventLoopImpl>,
     private val worker: Worker
-) : CoroutineDispatcher(), ThreadBoundInterceptor, Delay {
+) : CoroutineDispatcher(), Delay, ThreadBoundInterceptor {
     override val thread: Thread = WorkerThread(worker)
 
     init { freeze() }
