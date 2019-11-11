@@ -16,3 +16,6 @@ internal actual inline fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedL
         cur = next
     } while (!last)
 }
+
+@Suppress("NOTHING_TO_INLINE")
+internal actual inline fun storeCyclicRef(block: () -> Unit) {} // nop on native

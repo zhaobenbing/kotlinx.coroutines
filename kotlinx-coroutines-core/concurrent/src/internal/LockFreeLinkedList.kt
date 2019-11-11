@@ -63,7 +63,9 @@ public actual open class LockFreeLinkedListNode {
     private val _removedRef = atomic<Removed?>(null) // lazily cached removed ref to this
 
     private fun removed(): Removed =
-        _removedRef.value ?: Removed(this).also { _removedRef.lazySet(it) }
+        _removedRef.value ?: Removed(this).also {
+            storeCyclicRef { _removedRef.lazySet(it) }
+        }
 
     @PublishedApi
     internal abstract class CondAddOp(

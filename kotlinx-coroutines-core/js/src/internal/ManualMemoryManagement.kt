@@ -6,3 +6,6 @@ package kotlinx.coroutines.internal
 
 @Suppress("NOTHING_TO_INLINE")
 internal actual inline fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedListNode?) {} // only needed on Kotlin/Native
+
+@Suppress("NOTHING_TO_INLINE")
+internal actual inline fun storeCyclicRef(block: () -> Unit) = block()

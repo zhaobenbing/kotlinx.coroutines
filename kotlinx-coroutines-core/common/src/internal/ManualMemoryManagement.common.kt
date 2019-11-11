@@ -5,3 +5,4 @@
 package kotlinx.coroutines.internal
 
 internal expect fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedListNode?) // only needed on Kotlin/Native
+internal expect inline fun storeCyclicRef(block: () -> Unit) // nop on native

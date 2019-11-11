@@ -11,3 +11,7 @@ import kotlin.internal.InlineOnly
 @InlineOnly
 @Suppress("NOTHING_TO_INLINE") // Should be NOP
 internal actual inline fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedListNode?) {} // only needed on Kotlin/Native
+
+@InlineOnly
+@Suppress("NOTHING_TO_INLINE")
+internal actual inline fun storeCyclicRef(block: () -> Unit) = block()
