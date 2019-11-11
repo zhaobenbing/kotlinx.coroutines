@@ -237,6 +237,7 @@ public open class JobSupport constructor(active: Boolean) : Job, ChildJob, Paren
         assert { casSuccess }
         // And process all post-completion actions
         completeStateFinalization(state, finalState)
+        disposeLockFreeLinkedList { state.list } // only needed on Kotlin/Native
         return finalState
     }
 
@@ -292,6 +293,7 @@ public open class JobSupport constructor(active: Boolean) : Job, ChildJob, Paren
         onCancelling(null) // simple state is not a failure
         onCompletionInternal(update)
         completeStateFinalization(state, update)
+        disposeLockFreeLinkedList { state as? JobNode<*> } // only needed on Kotlin/Native
         return true
     }
 

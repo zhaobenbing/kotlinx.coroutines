@@ -668,6 +668,20 @@ public actual open class LockFreeLinkedListNode {
         assert { next === this._next.value }
     }
 
+    /**
+     * Only needed on Kotlin/Native. See [disposeLockFreeLinkedList].
+     */
+    internal fun unlinkRefs(nullRef: Node) {
+        _next.value = nullRef
+        _prev.value = nullRef
+        _removedRef.value = nullRef.removed()
+    }
+
+    /**
+     * Only needed on Kotlin/Native. See [disposeLockFreeLinkedList].
+     */
+    internal fun initRemoved() { removed() }
+
     override fun toString(): String = "$classSimpleName@$hexAddress"
 }
 
