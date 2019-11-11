@@ -31,11 +31,9 @@ private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatch
     init { freeze() }
 
     fun start() {
-        worker.execute(TransferMode.SAFE, { this }) { it.run() }
-    }
-
-    fun run() {
-        runEventLoop(ThreadLocalEventLoop.eventLoop) { isClosed.value }
+        worker.execute {
+            runEventLoop(ThreadLocalEventLoop.eventLoop) { isClosed.value }
+        }
     }
 
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {

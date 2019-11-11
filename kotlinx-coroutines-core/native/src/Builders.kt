@@ -101,7 +101,7 @@ internal actual fun <T, R> startCoroutine(
             "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
         }
         if (start != CoroutineStart.LAZY) {
-            newThread.executeFrozen {
+            newThread.execute {
                 startCoroutineImpl(start, coroutine, receiver, block)
             }
         }

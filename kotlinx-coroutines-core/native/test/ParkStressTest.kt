@@ -31,16 +31,11 @@ class ParkStressTest {
         // submit nTasks
         repeat(nTasks) { index ->
             randomWait()
-            val future = worker.execute(TransferMode.SAFE, { index }) {
+            val operation: () -> Unit = {
                 TaskCounter.counter++
-                // compute a square of index
-                it * it
             }
-            // block until the task is executed sometimes
-            if (Random.nextBoolean()) {
-                val result = future.result
-                assertEquals(index * index, result)
-            }
+            operation.freeze()
+            worker.executeAfter(0, operation)
         }
         // shutdown worker
         worker.requestTermination().result // block until termination

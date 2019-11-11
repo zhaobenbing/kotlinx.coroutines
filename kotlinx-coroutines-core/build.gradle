@@ -86,22 +86,21 @@ kotlin {
     }
 
     // Configure a separate test where code runs in background
-    configure([targets.macosX64, targets.linuxX64, targets.mingwX64]) {
-        binaries {
-            test("background", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
-                freeCompilerArgs += ["-e", "kotlinx.coroutines.mainBackground"]
+    configure(targets) {
+        if (["macos", "linux", "mingw"].any { name.startsWith(it) }) {
+            binaries {
+                test("background", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
+                    freeCompilerArgs += ["-e", "kotlinx.coroutines.mainBackground"]
+                }
             }
-        }
-        testRuns {
-            background { setExecutionSourceFrom(binaries.backgroundDebugTest) }
-        }
-    }
-
-    // A separate binary to test for memory leaks
-    targets.macosX64 {
-        binaries {
-            test("leakChecker", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
-                freeCompilerArgs += ["-e", "kotlin.native.internal.test.mainNoExit"]
+            testRuns {
+                background { setExecutionSourceFrom(binaries.backgroundDebugTest) }
+            }
+            // todo: A separate binary to test for memory leaks (temporary separate, should be default)
+            binaries {
+                test("leakChecker", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
+                    freeCompilerArgs += ["-e", "kotlin.native.internal.test.mainNoExit"]
+                }
             }
         }
     }

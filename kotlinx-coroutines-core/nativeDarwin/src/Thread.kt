@@ -43,7 +43,7 @@ private class MainThread : WorkerThread() {
 
     init { freeze() }
 
-    override fun execute(block: Runnable) {
+    override fun execute(block: () -> Unit) {
         super.execute(block)
         // post to main queue if needed
         if (posted.compareAndSet(false, true)) {

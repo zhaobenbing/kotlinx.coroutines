@@ -8,14 +8,8 @@ import kotlin.native.ThreadLocal
 import kotlin.native.concurrent.*
 
 internal abstract class Thread {
-    abstract fun execute(block: Runnable)
+    abstract fun execute(block: () -> Unit)
     abstract fun parkNanos(timeout: Long)
-}
-
-internal inline fun Thread.executeFrozen(crossinline block: () -> Unit) {
-    val runnable = Runnable { block() }
-    runnable.freeze()
-    execute(runnable)
 }
 
 @ThreadLocal
@@ -25,13 +19,13 @@ internal fun currentThread(): Thread = currentThread
 
 internal expect fun initCurrentThread(): Thread
 
+internal fun Worker.execute(block: () -> Unit) {
+    block.freeze()
+    executeAfter(0, block)
+}
+
 internal open class WorkerThread(val worker: Worker = Worker.current) : Thread() {
-    override fun execute(block: Runnable) {
-        block.freeze()
-        worker.execute(TransferMode.SAFE, { block }) {
-            it.run()
-        }
-    }
+    override fun execute(block: () -> Unit) = worker.execute(block)
 
     override fun parkNanos(timeout: Long) {
         // Note: worker is parked in microseconds
