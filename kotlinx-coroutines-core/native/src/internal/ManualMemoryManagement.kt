@@ -4,8 +4,6 @@
 
 package kotlinx.coroutines.internal
 
-import kotlin.native.concurrent.*
-
 @Suppress("NOTHING_TO_INLINE")
 internal actual inline fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedListNode?) {
     // only needed on Kotlin/Native
@@ -13,14 +11,8 @@ internal actual inline fun disposeLockFreeLinkedList(list: () -> LockFreeLinkedL
     var cur = head
     do {
         val next = cur.nextNode
-        cur.unlinkRefs(NullNodeRef)
+        val last = next === head
+        cur.unlinkRefs(last)
         cur = next
-    } while (cur !== head)
-}
-
-private object NullNodeRef : LockFreeLinkedListNode() {
-    init {
-        initRemoved()
-        freeze()
-    }
+    } while (!last)
 }
