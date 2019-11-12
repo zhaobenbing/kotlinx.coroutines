@@ -18,7 +18,7 @@ class ConcurrentExceptionsStressTest : TestBase() {
     @AfterTest
     fun tearDown() {
         workers.forEach {
-            it.closeAndBlockUntilTermination()
+            it.close()
         }
     }
 

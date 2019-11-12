@@ -18,9 +18,6 @@ public actual abstract class SingleThreadDispatcher : CoroutineDispatcher() {
     internal abstract val thread: Thread
 
     public actual abstract fun close()
-
-    // for tests
-    internal actual open fun closeAndBlockUntilTermination() { close() }
 }
 
 private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatcher(), ThreadBoundInterceptor, Delay {
@@ -52,11 +49,6 @@ private class WorkerCoroutineDispatcherImpl(name: String) : SingleThreadDispatch
     }
 
     override fun close() {
-        isClosed.value = true
-        worker.requestTermination()
-    }
-
-    override fun closeAndBlockUntilTermination() {
         isClosed.value = true
         worker.requestTermination().result // Note: calling "result" blocks
     }

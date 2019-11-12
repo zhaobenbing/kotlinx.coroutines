@@ -25,14 +25,6 @@ public abstract class ExecutorCoroutineDispatcher: CoroutineDispatcher(), Closea
     public abstract override fun close()
 
     /**
-     * Closes this coroutine dispatcher, shuts down its executor, and blocks until its termination.
-     * Only to be used by tests.
-     */
-    internal open fun closeAndBlockUntilTermination() {
-        close()
-    }
-
-    /**
      * Underlying executor of current [CoroutineDispatcher].
      */
     public abstract val executor: Executor
@@ -128,13 +120,6 @@ internal abstract class ExecutorCoroutineDispatcherBase : ExecutorCoroutineDispa
 
     override fun close() {
         (executor as? ExecutorService)?.shutdown()
-    }
-
-    internal override fun closeAndBlockUntilTermination() {
-        (executor as? ExecutorService)?.run {
-            shutdown()
-            awaitTermination(10, TimeUnit.SECONDS) // used only for tests
-        }
     }
 
     override fun toString(): String = executor.toString()
