@@ -99,7 +99,7 @@ kotlin {
             // todo: A separate binary to test for memory leaks (temporary separate, should be default)
             binaries {
                 test("leakChecker", [org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG]) {
-                    freeCompilerArgs += ["-e", "kotlin.native.internal.test.mainNoExit"]
+                    freeCompilerArgs += ["-e", "kotlinx.coroutines.mainNoExit"]
                 }
             }
         }

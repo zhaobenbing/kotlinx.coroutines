@@ -7,6 +7,8 @@ package kotlinx.coroutines
 import platform.darwin.*
 import kotlin.native.concurrent.*
 import kotlinx.atomicfu.*
+import platform.CoreFoundation.*
+import kotlin.native.SharedImmutable
 
 /**
  * Initializes the main thread. Must be called from the main thread if the application's interaction
@@ -21,11 +23,11 @@ internal actual fun initCurrentThread(): Thread =
     if (isMainThread()) mainThread else WorkerThread()
 
 @SharedImmutable
-private val _mainThread = AtomicReference<Thread?>(null)
+private val _mainThread = AtomicReference<MainThread?>(null)
 
-internal val mainThread: Thread get() = _mainThread.value ?: getOrCreateMainThread()
+internal val mainThread: MainThread get() = _mainThread.value ?: getOrCreateMainThread()
 
-private fun getOrCreateMainThread(): Thread {
+private fun getOrCreateMainThread(): MainThread {
     require(isMainThread()) {
         "Coroutines must be initialized from the main thread: call 'initMainThread' from the main thread first"
     }
@@ -33,7 +35,7 @@ private fun getOrCreateMainThread(): Thread {
     return MainThread().also { _mainThread.value = it }
 }
 
-private class MainThread : WorkerThread() {
+internal class MainThread : WorkerThread() {
     private val posted = atomic(false)
 
     private val processQueueBlock: dispatch_block_t =  {
@@ -46,9 +48,20 @@ private class MainThread : WorkerThread() {
     override fun execute(block: () -> Unit) {
         super.execute(block)
         // post to main queue if needed
-        if (posted.compareAndSet(false, true)) {
-            dispatch_async(dispatch_get_main_queue(), processQueueBlock)
+//        if (posted.compareAndSet(false, true)) {
+//            dispatch_async(dispatch_get_main_queue(), processQueueBlock)
+//        }
+    }
+
+    fun shutdown() {
+//        execute {
+//            CFRunLoopStop(CFRunLoopGetCurrent())
+//        }
+        dispatch_async(dispatch_get_main_queue()) {
+            CFRunLoopStop(CFRunLoopGetCurrent())
         }
+        CFRunLoopRun()
+        assert(!posted.value) // nothing else should have been posted
     }
 
     override fun toString(): String = "MainThread"
