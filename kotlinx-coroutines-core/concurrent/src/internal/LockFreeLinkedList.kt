@@ -57,7 +57,7 @@ public actual typealias PrepareOp = LockFreeLinkedListNode.PrepareOp
 @Suppress("LeakingThis")
 @InternalCoroutinesApi
 public actual open class LockFreeLinkedListNode {
-    // those _next & _prev refs can be null on Kotlin/Native when doubly-linked list is disposed
+    // those _next & _prev refs can be null on Kotlin/Native when doubly-linked list is unlinked
     private val _next = atomic<Any?>(this) // Node | Removed | OpDescriptor
     private val _prev = atomic<Any?>(this) // Node | Removed
     private val _removedRef = atomic<Removed?>(null) // lazily cached removed ref to this
@@ -96,7 +96,7 @@ public actual open class LockFreeLinkedListNode {
     public actual val isRemoved: Boolean get() = next is Removed
 
     // LINEARIZABLE. Returns Node | Removed
-    // Returns null for the disposed node on Kotlin/Native
+    // Returns null for the unlinked node on Kotlin/Native
     public val next: Any? get() {
         _next.loop { next ->
             if (next !is OpDescriptor) return next
@@ -105,10 +105,10 @@ public actual open class LockFreeLinkedListNode {
     }
 
     // LINEARIZABLE. Returns next non-removed Node
-    public actual val nextNode: Node get() = next!!.unwrap()
+    public actual val nextNode: Node get() = next?.unwrap() ?: this // it could have been unlinked on Kotlin/Native
 
     // LINEARIZABLE. Returns Node | Removed
-    // Returns null for the disposed node on Kotlin/Native
+    // Returns null for the unlinked node on Kotlin/Native
     public val prev: Any? get() {
         _prev.loop { prev ->
             if (prev is Removed?) return prev
@@ -119,7 +119,7 @@ public actual open class LockFreeLinkedListNode {
     }
 
     // LINEARIZABLE. Returns prev non-removed Node
-    public actual val prevNode: Node get() = prev!!.unwrap()
+    public actual val prevNode: Node get() = prev?.unwrap() ?: this // it could have been unlinked on Kotlin/Native
 
     // ------ addOneIfEmpty ------
 
@@ -157,7 +157,7 @@ public actual open class LockFreeLinkedListNode {
     public actual inline fun addLastIf(node: Node, crossinline condition: () -> Boolean): Boolean {
         val condAdd = makeCondAddOp(node, condition)
         while (true) { // lock-free loop on prev.next
-            // sentinel node is never removed, so prev is always defined, but can be concurrently disposed on Kotlin/Native
+            // sentinel node is never removed, so prev is always defined, but can be concurrently unlinked on Kotlin/Native
             val prev = prev as Node? ?: return false
             when (prev.tryCondAddNext(node, this, condAdd)) {
                 SUCCESS -> return true
@@ -550,8 +550,9 @@ public actual open class LockFreeLinkedListNode {
         next.correctPrev(prev.unwrap(), null)
     }
 
-    private fun markPrev(): Node {
+    private fun markPrev(): Node? {
         _prev.loop { prev ->
+            if (prev == null) return null // unlinked node on Kotlin/Native
             if (prev is Removed) return prev.ref
             // See detailed comment in findHead on why `prev === this` is a special case for which we know that
             // the prev should have being pointing to the head of list but finishAdd that was supposed
@@ -596,26 +597,26 @@ public actual open class LockFreeLinkedListNode {
     @PublishedApi
     internal fun helpDelete() {
         var last: Node? = null // will set to the node left of prev when found
-        var prev: Node = markPrev()
-        var next: Node = (this._next.value as Removed).ref
+        var prev: Node = markPrev() ?: return // could be unlinked on Kotlin/Native
+        var next: Node = (this._next.value as Removed?)?.ref ?: return // could be unlinked on Kotlin/Native
         while (true) {
             // move to the right until first non-removed node
-            val nextNext = next.next ?: return
+            val nextNext = next.next ?: return // could be unlinked on Kotlin/Native
             if (nextNext is Removed) {
-                next.markPrev()
+                next.markPrev() ?: return // could be unlinked on Kotlin/Native
                 next = nextNext.ref
                 continue
             }
             // move the the left until first non-removed node
-            val prevNext = prev.next ?: return
+            val prevNext = prev.next ?: return // could be unlinked on Kotlin/Native
             if (prevNext is Removed) {
                 if (last != null) {
-                    prev.markPrev()
+                    prev.markPrev() ?: return // could be unlinked on Kotlin/Native
                     last._next.compareAndSet(prev, prevNext.ref)
                     prev = last
                     last = null
                 } else {
-                    prev = (prev._prev.value ?: return).unwrap()
+                    prev = prev._prev.value?.unwrap() ?: return // could be unlinked on Kotlin/Native
                 }
                 continue
             }
@@ -638,8 +639,8 @@ public actual open class LockFreeLinkedListNode {
         var prev: Node = _prev
         var last: Node? = null // will be set so that last.next === prev
         while (true) {
-            // move the the left until first non-removed node
-            val prevNext = prev._next.value
+            // move to the left until first non-removed node
+            val prevNext = prev._next.value ?: return null // could be unlinked on Kotlin/Native
             if (prevNext === op) return prev // part of the same op -- don't recurse, didn't correct prev
             if (prevNext is OpDescriptor) { // help & retry
                 prevNext.perform(prev)
@@ -647,16 +648,16 @@ public actual open class LockFreeLinkedListNode {
             }
             if (prevNext is Removed) {
                 if (last !== null) {
-                    prev.markPrev()
+                    prev.markPrev() ?: return null // could be unlinked on Kotlin/Native
                     last._next.compareAndSet(prev, prevNext.ref)
                     prev = last
                     last = null
                 } else {
-                    prev = (prev._prev.value ?: return null).unwrap()
+                    prev = prev._prev.value?.unwrap() ?: return null // could be unlinked on Kotlin/Native
                 }
                 continue
             }
-            val oldPrev = this._prev.value ?: return null
+            val oldPrev = this._prev.value ?: return null // could be unlinked on Kotlin/Native
             if (oldPrev is Removed) return null // this node was removed, too -- its remover will take care
             if (prevNext !== this) {
                 // need to fixup next
@@ -677,12 +678,11 @@ public actual open class LockFreeLinkedListNode {
     }
 
     /**
-     * Only needed on Kotlin/Native. See [disposeLockFreeLinkedList].
+     * Only needed on Kotlin/Native to unlink cyclic data structure. See [disposeLockFreeLinkedList].
      */
     internal fun unlinkRefs(last: Boolean) {
         if (last) _next.value = null
         _prev.value = null
-        _removedRef.value = null
     }
 
     override fun toString(): String = "$classSimpleName@$hexAddress"
