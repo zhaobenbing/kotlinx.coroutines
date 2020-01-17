@@ -9,23 +9,17 @@ kotlin {
     }
 
     targets {
-        if (project.ext.ideaActive) {
-            // todo: This is IDEA kludge, without "fromPresent" the code does not resolve properly
-            //fromPreset(project.ext.ideaPreset, 'native')
-            addTarget(project.ext.ideaPreset)
-        } else {
-            addTarget(presets.linuxX64)
-            addTarget(presets.iosArm64)
-            addTarget(presets.iosArm32)
-            addTarget(presets.iosX64)
-            addTarget(presets.macosX64)
-            addTarget(presets.mingwX64)
-            addTarget(presets.tvosArm64)
-            addTarget(presets.tvosX64)
-            addTarget(presets.watchosArm32)
-            addTarget(presets.watchosArm64)
-            addTarget(presets.watchosX86)
-        }
+        addTarget(presets.linuxX64)
+        addTarget(presets.iosArm64)
+        addTarget(presets.iosArm32)
+        addTarget(presets.iosX64)
+        addTarget(presets.macosX64)
+        addTarget(presets.mingwX64)
+        addTarget(presets.tvosArm64)
+        addTarget(presets.tvosX64)
+        addTarget(presets.watchosArm32)
+        addTarget(presets.watchosArm64)
+        addTarget(presets.watchosX86)
     }
 
     sourceSets {

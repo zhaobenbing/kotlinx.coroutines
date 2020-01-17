@@ -3,15 +3,17 @@
  */
 
 apply plugin: 'kotlin-multiplatform'
-apply from: rootProject.file("gradle/targets.gradle")
 apply from: rootProject.file("gradle/compile-jvm-multiplatform.gradle")
 apply from: rootProject.file("gradle/compile-common.gradle")
 apply from: rootProject.file("gradle/compile-js-multiplatform.gradle")
 apply from: rootProject.file("gradle/compile-native-multiplatform.gradle")
 apply from: rootProject.file('gradle/publish-npm-js.gradle')
 
+project.ext.ideaActive = System.getProperty('idea.active') == 'true'
+project.ext.sourceSetSuffixes = ["Main", "Test"]
+
 void defineSourceSet(newName, dependsOn, includedInPred) {
-    for (suffix in ["Main", "Test"]) {
+    for (suffix in project.ext.sourceSetSuffixes) {
         def newSS = kotlin.sourceSets.maybeCreate(newName + suffix)
         for (dep in dependsOn) {
             newSS.dependsOn(kotlin.sourceSets[dep + suffix])
@@ -47,13 +49,6 @@ boolean isNativeOther(String name) { return ["linux", "mingw"].any { name.starts
 defineSourceSet("concurrent", ["common"]) { it in ["jvm", "native"] }
 defineSourceSet("nativeDarwin", ["native"]) { isNativeDarwin(it) }
 defineSourceSet("nativeOther", ["native"]) { isNativeOther(it) }
-
-// todo: This is IDEA kludge, without "fromPresent" the code does not resolve properly
-if (project.ext.ideaActive && isNativeDarwin(project.ext.ideaPreset.name)) {
-    kotlin.targets {
-        fromPreset(project.ext.ideaPreset, 'nativeDarwin')
-    }
-}
 
 /*
  * All platform plugins and configuration magic happens here instead of build.gradle
@@ -116,6 +111,36 @@ kotlin {
 
 configurations {
     configureKotlinJvmPlatform(kotlinCompilerPluginClasspath)
+}
+
+def configureNativeSourceSetPreset(name, preset) {
+    def hostMainCompilation = project.kotlin.targetFromPreset(preset).compilations.main
+    def compileConfiguration = configurations[hostMainCompilation.compileDependencyConfigurationName]
+    def hostNativePlatformLibs = files(provider {
+        compileConfiguration.findAll {
+            it.path.endsWith(".klib") || it.absolutePath.contains("klib${File.separator}platform")
+        }
+    })
+    for (suffix in project.ext.sourceSetSuffixes) {
+        configure(kotlin.sourceSets[name + suffix]) {
+            dependencies.add(implementationMetadataConfigurationName, hostNativePlatformLibs)
+        }
+    }
+}
+
+// Configure platform libraries for native source sets when working in IDEA
+if (project.ext.ideaActive) {
+    def manager = project.ext.hostManager
+    def linuxPreset = kotlin.presets.linuxX64
+    def macosPreset = kotlin.presets.macosX64
+    // linux should be always available (cross-compilation capable) -- use it as default
+    assert manager.isEnabled(linuxPreset.konanTarget)
+    // use macOS libs for nativeDarwin if available
+    def macosAvailable = manager.isEnabled(macosPreset.konanTarget)
+    // configure source sets
+    configureNativeSourceSetPreset("native", linuxPreset)
+    configureNativeSourceSetPreset("nativeOther", linuxPreset)
+    configureNativeSourceSetPreset("nativeDarwin", macosAvailable ? macosPreset : linuxPreset)
 }
 
 kotlin.sourceSets {
