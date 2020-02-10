@@ -10,7 +10,11 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 import kotlin.native.concurrent.*
+import kotlin.native.concurrent.ensureNeverFrozen as nativeEnsureNeverFrozen
 import kotlin.native.ref.*
+
+@Suppress("NOTHING_TO_INLINE")
+actual inline fun Any.ensureNeverFrozen() { nativeEnsureNeverFrozen() }
 
 internal actual open class ShareableRefHolder {
     internal var shareable: ShareableObject<*>? = null // cached result of asShareable call

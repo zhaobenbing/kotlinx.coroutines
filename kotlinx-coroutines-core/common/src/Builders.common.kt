@@ -179,7 +179,7 @@ internal fun <T, R> startCoroutineImpl(
     block: suspend R.() -> T
 ) = when (start) {
     CoroutineStart.DEFAULT -> block.startCoroutineCancellable(receiver, coroutine)
-    CoroutineStart.ATOMIC -> block.startCoroutine(receiver, coroutine)
+    CoroutineStart.ATOMIC -> block.startCoroutineAtomic(receiver, coroutine)
     CoroutineStart.UNDISPATCHED -> block.startCoroutineUndispatched(receiver, coroutine)
     CoroutineStart.LAZY -> Unit // will start lazily
 }

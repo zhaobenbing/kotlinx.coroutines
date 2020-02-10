@@ -5,8 +5,20 @@
 package kotlinx.coroutines.intrinsics
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.internal.*
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
+
+/**
+ * Use this function to start coroutine in an "atomic" way, so that it cannot be cancelled
+ * while waiting to be dispatched.
+ */
+internal fun <R, T> (suspend (R) -> T).startCoroutineAtomic(receiver: R, completion: Continuation<T>) =
+    runSafely(completion) {
+        createCoroutineUnintercepted(receiver, completion).also { it.ensureNeverFrozen() }
+            .intercepted().resume(Unit)
+    }
+
 
 /**
  * Use this function to start coroutine in a cancellable way, so that it can be cancelled
@@ -14,7 +26,10 @@ import kotlin.coroutines.intrinsics.*
  */
 @InternalCoroutinesApi
 public fun <T> (suspend () -> T).startCoroutineCancellable(completion: Continuation<T>) = runSafely(completion) {
-    createCoroutineUnintercepted(completion).intercepted().resumeCancellableWith(Result.success(Unit))
+    runSafely(completion) {
+        createCoroutineUnintercepted(completion).also { it.ensureNeverFrozen() }
+            .intercepted().resumeCancellableWith(Result.success(Unit))
+    }
 }
 
 /**
@@ -23,7 +38,8 @@ public fun <T> (suspend () -> T).startCoroutineCancellable(completion: Continuat
  */
 internal fun <R, T> (suspend (R) -> T).startCoroutineCancellable(receiver: R, completion: Continuation<T>) =
     runSafely(completion) {
-        createCoroutineUnintercepted(receiver, completion).intercepted().resumeCancellableWith(Result.success(Unit))
+        createCoroutineUnintercepted(receiver, completion).also { it.ensureNeverFrozen() }
+            .intercepted().resumeCancellableWith(Result.success(Unit))
     }
 
 /**
@@ -32,6 +48,7 @@ internal fun <R, T> (suspend (R) -> T).startCoroutineCancellable(receiver: R, co
  */
 internal fun Continuation<Unit>.startCoroutineCancellable(fatalCompletion: Continuation<*>) =
     runSafely(fatalCompletion) {
+        ensureNeverFrozen()
         intercepted().resumeCancellableWith(Result.success(Unit))
     }
 

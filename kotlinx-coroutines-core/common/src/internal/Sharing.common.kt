@@ -9,6 +9,7 @@ import kotlin.coroutines.*
 
 internal expect open class ShareableRefHolder()
 internal expect fun ShareableRefHolder.disposeSharedRef()
+expect fun Any.ensureNeverFrozen()
 internal expect fun <T> T.asShareable(): DisposableHandle where T : DisposableHandle, T : ShareableRefHolder
 internal expect fun CoroutineDispatcher.asShareable(): CoroutineDispatcher
 internal expect fun <T> Continuation<T>.asShareable() : Continuation<T>

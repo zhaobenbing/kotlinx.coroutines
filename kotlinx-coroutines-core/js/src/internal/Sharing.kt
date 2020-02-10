@@ -10,6 +10,9 @@ import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 import kotlin.internal.*
 
+@Suppress("NOTHING_TO_INLINE") // Should be NOP
+internal actual inline fun Any.ensureNeverFrozen() {}
+
 @Suppress("ACTUAL_WITHOUT_EXPECT") // visibility different
 internal actual typealias ShareableRefHolder = Any
 
