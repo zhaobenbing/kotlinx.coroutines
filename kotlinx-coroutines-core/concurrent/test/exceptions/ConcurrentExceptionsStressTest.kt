@@ -9,7 +9,7 @@ import kotlin.test.*
 
 class ConcurrentExceptionsStressTest : TestBase() {
     private val nWorkers = 4
-    private val nRepeat = 1000 * stressTestMultiplier
+    private val nRepeat = 20000 * stressTestMultiplier
 
     private val workers = Array(nWorkers) { index ->
         newSingleThreadContext("JobExceptionsStressTest-$index")
@@ -23,7 +23,7 @@ class ConcurrentExceptionsStressTest : TestBase() {
     }
 
     @Test
-    @Ignore // todo: this test is leaking memory on Kotlin/Native
+    //@Ignore // todo: this test is leaking memory on Kotlin/Native
     fun testStress() = runTest {
         repeat(nRepeat) {
             testOnce()
