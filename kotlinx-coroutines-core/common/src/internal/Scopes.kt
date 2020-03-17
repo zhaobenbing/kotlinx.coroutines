@@ -12,7 +12,7 @@ import kotlin.jvm.*
 /**
  * This is a coroutine instance that is created by [coroutineScope] builder.
  */
-internal open class ScopeCoroutine<in T>(
+public open class ScopeCoroutine<in T>(
     context: CoroutineContext,
     uCont: Continuation<T>
 ) : AbstractCoroutine<T>(context, true), CoroutineStackFrame {

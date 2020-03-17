@@ -4,8 +4,15 @@
 
 package kotlinx.coroutines
 
+import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.internal.*
+import kotlinx.coroutines.intrinsics.startUndispatchedOrReturn
+import kotlinx.coroutines.selects.select
 import kotlin.test.*
 import kotlin.native.concurrent.*
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.intrinsics.*
 
 class FreezingTest : TestBase() {
     @Test
@@ -34,10 +41,46 @@ class FreezingTest : TestBase() {
                 "OK"
             }
             assertEquals("OK", result)
+
             assertEquals(mutable1.isFrozen, false)
         }
         job.join()
         assertEquals(mutable1.isFrozen, false)
         mutable1.add(42) // just to be 100% sure
+    }
+
+    //@Test
+    fun testAsFairChannelReceive1() = runTest {
+        withContext(Dispatchers.Default) {
+
+            //val channel = asFairChannel(flowOf(1))
+            val ch = Channel<Int>()
+            val newContext = coroutineContext + EmptyCoroutineContext
+            val producerCoroutine = ProducerCoroutine(newContext, ch)
+            producerCoroutine.start(CoroutineStart.DEFAULT, producerCoroutine) {
+                val ch = Channel<Int>(1)
+                ch.send(1)
+            }
+
+            val combo = flow<Int> {
+                // coroutineScope
+                suspendCoroutineUninterceptedOrReturn<Any> { uCont ->
+
+                    val coroutine = ScopeCoroutine(uCont.context, uCont)
+                    check(coroutine.uCont is ShareableContinuation)
+                    coroutine.startUndispatchedOrReturn(coroutine) {
+
+                        select {
+                            producerCoroutine.onReceive { value ->
+                                value
+                            }
+                        }
+
+                    }
+
+                }
+            }
+            assertEquals(1, combo.first())
+        }
     }
 }
