@@ -88,11 +88,6 @@ publishing {
                 it.artifactId = "$project.name-$type"
                 break
         }
-
-        // disable metadata everywhere, but in native modules
-        if (type == 'maven' || type == 'metadata' || type == 'jvm' || type == 'js') {
-            moduleDescriptorGenerator = null
-        }
     }
 }
 
