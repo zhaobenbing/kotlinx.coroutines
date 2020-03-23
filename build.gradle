@@ -1,6 +1,8 @@
 /*
  * Copyright 2016-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
  */
+
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.konan.target.HostManager
 
 apply from: rootProject.file("gradle/experimental.gradle")
@@ -87,9 +89,6 @@ buildscript {
         classpath "net.ltgt.gradle:gradle-apt-plugin:0.21"
     }
 }
-
-import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-
 // todo:KLUDGE: This is needed to workaround dependency resolution between Java and MPP modules
 def configureKotlinJvmPlatform(configuration) {
     configuration.attributes.attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
@@ -160,6 +159,9 @@ allprojects {
         }
         maven { url "https://kotlin.bintray.com/kotlin-eap" }
         maven { url "https://kotlin.bintray.com/kotlinx" }
+        flatDir {
+            dirs "$rootDir/bbdeps"
+        }
     }
 }
 
