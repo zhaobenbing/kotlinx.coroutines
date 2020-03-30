@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ * Copyright 2016-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
  */
 
 package kotlinx.coroutines
@@ -294,6 +294,23 @@ class WorkerDispatcherTest : TestBase() {
         job.join()
         assertEquals((k + 1) * n, atomic.value)
         finish(2)
+    }
+
+    @Test
+    fun testBroadcastAsFlow() = runTest {
+        expect(1)
+        withContext(dispatcher) {
+            expect(2)
+            broadcast {
+                expect(3)
+                send("OK")
+            }.asFlow().collect {
+                expect(4)
+                assertEquals("OK", it)
+            }
+            expect(5)
+        }
+        finish(6)
     }
 
     private data class Data(val s: String)
