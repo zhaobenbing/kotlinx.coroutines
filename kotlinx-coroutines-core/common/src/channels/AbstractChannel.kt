@@ -383,13 +383,14 @@ internal abstract class AbstractSendChannel<E> : SendChannel<E> {
                         return
                     }
                     enqueueResult is Closed<*> -> {
-                        node.dispose()
+                        node.block.shareableDispose(useIt = true)
                         throw recoverStackTrace(helpCloseAndGetSendException(enqueueResult))
                     }
                     enqueueResult === ENQUEUE_FAILED -> {} // try to offer
                     enqueueResult is Receive<*> -> {} // try to offer
                     else -> error("enqueueSend returned $enqueueResult ")
                 }
+                node.block.shareableDispose(useIt = true)
             }
             // hm... receiver is waiting or buffer is not full. try to offer
             val offerResult = offerSelectInternal(element, select)
@@ -782,7 +783,7 @@ internal abstract class AbstractChannel<E> : AbstractSendChannel<E>(), Channel<E
         if (result) {
             select.disposeOnSelect(node)
         } else {
-            node.dispose()
+            node.block.shareableDispose(useIt = true)
         }
         return result
     }
