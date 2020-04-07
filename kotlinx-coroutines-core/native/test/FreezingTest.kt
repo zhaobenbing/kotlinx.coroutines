@@ -40,4 +40,14 @@ class FreezingTest : TestBase() {
         assertEquals(mutable1.isFrozen, false)
         mutable1.add(42) // just to be 100% sure
     }
+
+    @Test
+    fun testFrozenParentJob() {
+        val parent = Job()
+        parent.freeze()
+        val job = Job(parent)
+        assertTrue(job.isActive)
+        parent.cancel()
+        assertTrue(job.isCancelled)
+    }
 }
