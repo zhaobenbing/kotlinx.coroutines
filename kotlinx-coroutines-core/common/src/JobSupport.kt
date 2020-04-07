@@ -1333,8 +1333,6 @@ private class Empty(override val isActive: Boolean) : Incomplete {
 }
 
 internal open class JobImpl(parent: Job?) : JobSupport(true), CompletableJob {
-    init { initParentJobInternal(parent) }
-    override val onCancelComplete get() = true
     /*
      * Check whether parent is able to handle exceptions as well.
      * With this check, an exception in that pattern will be handled once:
@@ -1345,18 +1343,24 @@ internal open class JobImpl(parent: Job?) : JobSupport(true), CompletableJob {
      * }
      * ```
      */
-    override val handlesException: Boolean = handlesException()
+    override val handlesException: Boolean = handlesException(parent)
+
+    /*
+     * Only after that we init parent job (which might freeze this object if parent is frozen).
+     */
+    init { initParentJobInternal(parent) }
+
+    override val onCancelComplete get() = true
+
     override fun complete() = makeCompleting(Unit)
     override fun completeExceptionally(exception: Throwable): Boolean =
         makeCompleting(CompletedExceptionally(exception))
 
     @JsName("handlesExceptionF")
-    private fun handlesException(): Boolean {
-        var parentJob = (parentHandle as? ChildHandleNode)?.job ?: return false
-        while (true) {
-            if (parentJob.handlesException) return true
-            parentJob = (parentJob.parentHandle as? ChildHandleNode)?.job ?: return false
-        }
+    private tailrec fun handlesException(parent: Job?): Boolean {
+        val parentJob = (parent as? JobSupport) ?: return false
+        if (parentJob.handlesException) return true
+        return handlesException((parentJob.parentHandle as? ChildHandleNode)?.job)
     }
 }
 
