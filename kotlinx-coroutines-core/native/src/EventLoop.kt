@@ -51,7 +51,7 @@ internal class ShareableEventLoop(
 
     override fun invokeOnTimeout(timeMillis: Long, block: Runnable): DisposableHandle {
         checkCurrentThread()
-        return ref.get().invokeOnTimeout(timeMillis, block)
+        return (ref.get() as EventLoopImplBase).invokeOnTimeout(timeMillis, block)
     }
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
@@ -61,13 +61,13 @@ internal class ShareableEventLoop(
 
     override fun <T> interceptContinuation(continuation: Continuation<T>): Continuation<T> {
         checkCurrentThread()
-        return ref.get().interceptContinuation(continuation)
+        return (ref.get() as EventLoop).interceptContinuation(continuation)
     }
 
     @InternalCoroutinesApi
     override fun releaseInterceptedContinuation(continuation: Continuation<*>) {
         checkCurrentThread()
-        ref.get().releaseInterceptedContinuation(continuation)
+        (ref.get() as EventLoop).releaseInterceptedContinuation(continuation)
     }
 }
 
