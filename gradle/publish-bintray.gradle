@@ -63,8 +63,6 @@ publishing {
         }
     }
 
-    def jvmPomBuilder = null
-
     publications.all {
         pom.withXml(configureMavenCentralMetadata)
 
@@ -78,28 +76,14 @@ publishing {
         switch (type) {
             case 'kotlinMultiplatform':
                 it.artifactId = "$project.name"
-                it.artifact(tasks["jvmJar"])
-                it.artifact(tasks["jvmSourcesJar"]) { it.classifier = 'sources' }
-
-                // Publish the JVM JAR and POM so that consumers who depend on this module and can't read Gradle module
-                // metadata can still get the JVM artifact and transitive dependencies:
-                it.pom.withXml {
-                    def pomStringBuilder = asString()
-                    pomStringBuilder.setLength(0)
-                    // The JVM POM needs its artifact ID replaced with the artifact ID of the root module:
-                    def newContent = jvmPomBuilder.toString().replace(
-                            publishing.publications.jvm.artifactId,
-                            publishing.publications.kotlinMultiplatform.artifactId
-                    )
-                    pomStringBuilder.append(newContent)
-                }
+                apply from: "$rootDir/gradle/publish-mpp-root-module-in-platform.gradle"
+                publishPlatformArtifactsInRootModule(publications["jvm"])
                 break
             case 'metadata':
                 it.artifactId = "$project.name-common"
                 break
             case 'jvm':
                 it.artifactId = "$project.name-jvm"
-                it.pom.withXml { jvmPomBuilder = asString() }
                 break
             case 'js':
             case 'native':
