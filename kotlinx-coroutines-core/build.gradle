@@ -61,10 +61,10 @@ compileKotlinMetadata {
 
 kotlin.sourceSets {
     jvmTest.dependencies {
-        api "org.jetbrains.kotlinx:lincheck:$lincheck_version"
+        api("org.jetbrains.kotlinx:lincheck:$lincheck_version") { exclude(module: "kotlinx-coroutines-core") }
         api "org.jetbrains.kotlinx:kotlinx-knit-test:$knit_version"
         api "com.esotericsoftware:kryo:4.0.0"
-        implementation project (":android-unit-tests")
+        implementation(project.dependencies.project(path: ":android-unit-tests")) { exclude(module: "kotlinx-coroutines-core") }
     }
 }
 
