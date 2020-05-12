@@ -65,7 +65,7 @@ publishing {
         MavenCentralKt.configureMavenCentralMetadata(pom, project)
 
         // add empty javadocs
-        if (!isBom) {
+        if (!isBom && it.name != "kotlinMultiplatform") {
             it.artifact(javadocJar)
         }
 
