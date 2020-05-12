@@ -60,6 +60,8 @@ public open class ExperimentalCoroutineDispatcher(
         try {
             coroutineScheduler.dispatch(block)
         } catch (e: RejectedExecutionException) {
+            // CoroutineScheduler only rejects execution when it is being closed and this behavior is reserved
+            // for testing purposes, so we don't have to worry about cancelling the affected Job here.
             DefaultExecutor.dispatch(context, block)
         }
 
@@ -67,6 +69,8 @@ public open class ExperimentalCoroutineDispatcher(
         try {
             coroutineScheduler.dispatch(block, tailDispatch = true)
         } catch (e: RejectedExecutionException) {
+            // CoroutineScheduler only rejects execution when it is being closed and this behavior is reserved
+            // for testing purposes, so we don't have to worry about cancelling the affected Job here.
             DefaultExecutor.dispatchYield(context, block)
         }
 
@@ -105,7 +109,9 @@ public open class ExperimentalCoroutineDispatcher(
         try {
             coroutineScheduler.dispatch(block, context, tailDispatch)
         } catch (e: RejectedExecutionException) {
-            // Context shouldn't be lost here to properly invoke before/after task
+            // CoroutineScheduler only rejects execution when it is being closed and this behavior is reserved
+            // for testing purposes, so we don't have to worry about cancelling the affected Job here.
+            // TaskContext shouldn't be lost here to properly invoke before/after task
             DefaultExecutor.enqueue(coroutineScheduler.createTask(block, context))
         }
     }
