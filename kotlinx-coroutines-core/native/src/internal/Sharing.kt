@@ -5,7 +5,6 @@
 package kotlinx.coroutines.internal
 
 import kotlinx.atomicfu.*
-import kotlinx.cinterop.*
 import kotlinx.coroutines.*
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
@@ -57,6 +56,7 @@ internal actual fun <T> Continuation<T>.useLocal() : Continuation<T> = when (thi
 
 internal actual fun <T> Continuation<T>.shareableInterceptedResumeCancellableWith(result: Result<T>) {
     this as ShareableContinuation<T> // must have been shared
+    val thread = ownerThreadOrNull ?: wasUsed()
     if (currentThread() == thread) {
         useRef().intercepted().resumeCancellableWith(result)
     } else {
@@ -68,6 +68,7 @@ internal actual fun <T> Continuation<T>.shareableInterceptedResumeCancellableWit
 
 internal actual fun <T> Continuation<T>.shareableInterceptedResumeWith(result: Result<T>) {
     this as ShareableContinuation<T> // must have been shared
+    val thread = ownerThreadOrNull ?: wasUsed()
     if (currentThread() == thread) {
         useRef().intercepted().resumeWith(result)
     } else {
@@ -102,10 +103,11 @@ internal actual inline fun disposeContinuation(cont: () -> Continuation<*>) {
 
 internal actual fun <T> CancellableContinuationImpl<T>.shareableResume(delegate: Continuation<T>, useMode: Int) {
     if (delegate is ShareableContinuation) {
-        if (currentThread() == delegate.thread) {
+        val thread = delegate.ownerThreadOrNull ?: delegate.wasUsed()
+        if (currentThread() == thread) {
             resumeImpl(delegate.useRef(), useMode)
         } else {
-            delegate.thread.execute {
+            thread.execute {
                 resumeImpl(delegate.useRef(), useMode)
             }
         }
@@ -144,54 +146,46 @@ internal actual inline fun Any.weakRef(): Any = WeakReference(this)
 internal actual fun Any?.unweakRef(): Any? = (this as WeakReference<*>?)?.get()
 
 internal open class ShareableObject<T : Any>(obj: T) {
-    val thread: Thread = currentThread()
+    private val _ref = atomic<WorkerBoundReference<T>?>(WorkerBoundReference(obj))
 
-    // todo: this is the best effort (fail-fast) double-dispose protection, does not provide memory safety guarantee
-    private val _ref = atomic<StableRef<T>?>(StableRef.create(obj))
-
+    val ownerThreadOrNull: Thread?
+        get() = _ref.value?.worker?.toThread()
+    
     fun localRef(): T {
-        checkThread()
         val ref = _ref.value ?: wasUsed()
-        return ref.get()
+        return ref.value
     }
 
     fun localRefOrNull(): T? {
-        val current = currentThread()
-        if (current != thread) return null
         val ref = _ref.value ?: wasUsed()
-        return ref.get()
+        if (Worker.current != ref.worker) return null
+        return ref.value
     }
 
     fun localRefOrNullIfNotUsed(): T? {
-        val current = currentThread()
-        if (current != thread) return null
         val ref = _ref.value ?: return null
-        return ref.get()
+        if (Worker.current != ref.worker) return null
+        return ref.value
     }
 
     fun useRef(): T {
-        checkThread()
         val ref = _ref.getAndSet(null) ?: wasUsed()
-        return ref.get().also { ref.dispose() }
+        return ref.value
     }
 
     fun disposeRef(): T? {
-        checkThread()
         val ref = _ref.getAndSet(null) ?: return null
-        return ref.get().also { ref.dispose() }
+        return ref.value
     }
 
-    private fun checkThread() {
-        val current = currentThread()
-        if (current != thread) error("Ref $classSimpleName@$hexAddress can be used only from thread $thread but now in $current")
-    }
-
-    private fun wasUsed(): Nothing {
+    fun wasUsed(): Nothing {
         error("Ref $classSimpleName@$hexAddress was already used")
     }
 
-    override fun toString(): String =
-        "Shareable[${if (currentThread() == thread) _ref.value?.get()?.toString() ?: "used" else "wrong thread"}]"
+    override fun toString(): String {
+        val ref = _ref.value ?: return "Shareable[used]"
+        return "Shareable[${if (Worker.current == ref.worker) _ref.value.toString() else "wrong worker"}]"
+    }
 }
 
 @PublishedApi
@@ -201,6 +195,7 @@ internal class ShareableContinuation<T>(
     override val context: CoroutineContext = cont.context
 
     override fun resumeWith(result: Result<T>) {
+        val thread = ownerThreadOrNull ?: wasUsed()
         if (currentThread() == thread) {
             useRef().resumeWith(result)
         } else {
@@ -215,6 +210,7 @@ private class ShareableDisposableHandle(
     handle: DisposableHandle
 ) : ShareableObject<DisposableHandle>(handle), DisposableHandle {
     override fun dispose() {
+        val thread = ownerThreadOrNull ?: return
         if (currentThread() == thread) {
             disposeRef()?.dispose()
         } else {
@@ -247,6 +243,7 @@ private class ShareableBlock<T, R>(
 
     fun dispose(useIt: Boolean) {
         if (willBeUsed.value && !useIt) return
+        val thread = ownerThreadOrNull ?: return
         if (currentThread() == thread) {
             disposeRef()
         } else {

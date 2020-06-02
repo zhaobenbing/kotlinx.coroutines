@@ -18,6 +18,8 @@ internal fun currentThread(): Thread = currentThread
 
 internal expect fun initCurrentThread(): Thread
 
+internal expect fun Worker.toThread(): Thread
+
 internal fun Worker.execute(block: () -> Unit) {
     block.freeze()
     executeAfter(0, block)

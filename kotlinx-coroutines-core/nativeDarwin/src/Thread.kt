@@ -22,6 +22,9 @@ public fun initMainThread() {
 internal actual fun initCurrentThread(): Thread =
     if (isMainThread()) mainThread else WorkerThread()
 
+internal actual fun Worker.toThread(): Thread =
+    if (this == mainThread.worker) mainThread else WorkerThread(this)
+
 @SharedImmutable
 private val _mainThread = AtomicReference<MainThread?>(null)
 

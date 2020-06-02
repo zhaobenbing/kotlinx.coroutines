@@ -4,4 +4,8 @@
 
 package kotlinx.coroutines
 
+import kotlin.native.concurrent.*
+
 internal actual fun initCurrentThread(): Thread = WorkerThread()
+
+internal actual fun Worker.toThread(): Thread = WorkerThread(this)
