@@ -9,7 +9,6 @@ apply from: rootProject.file("gradle/compile-js-multiplatform.gradle")
 apply from: rootProject.file("gradle/compile-native-multiplatform.gradle")
 apply from: rootProject.file('gradle/publish-npm-js.gradle')
 
-project.ext.ideaActive = System.getProperty('idea.active') == 'true'
 project.ext.sourceSetSuffixes = ["Main", "Test"]
 
 void defineSourceSet(newName, dependsOn, includedInPred) {
@@ -55,16 +54,6 @@ defineSourceSet("nativeOther", ["native"]) { isNativeOther(it) }
  * because JMV-only projects depend on core, thus core should always be initialized before configuration.
  */
 kotlin {
-    sourceSets {
-        commonMain {
-            dependencies {
-                // todo: we should not need it
-                // todo: it must be compileOnly or JVM is spoiled !!!
-                implementation "org.jetbrains.kotlinx:atomicfu-common:$atomicfu_version"
-            }
-        }
-    }
-
     configure(sourceSets) {
         def srcDir = name.endsWith('Main') ? 'src' : 'test'
         def platform = name[0..-5]
@@ -137,19 +126,19 @@ def configureNativeSourceSetPreset(name, preset) {
 }
 
 // Configure platform libraries for native source sets when working in IDEA
-if (project.ext.ideaActive) {
-    def manager = project.ext.hostManager
-    def linuxPreset = kotlin.presets.linuxX64
-    def macosPreset = kotlin.presets.macosX64
-    // linux should be always available (cross-compilation capable) -- use it as default
-    assert manager.isEnabled(linuxPreset.konanTarget)
-    // use macOS libs for nativeDarwin if available
-    def macosAvailable = manager.isEnabled(macosPreset.konanTarget)
-    // configure source sets
-    configureNativeSourceSetPreset("native", linuxPreset)
-    configureNativeSourceSetPreset("nativeOther", linuxPreset)
-    configureNativeSourceSetPreset("nativeDarwin", macosAvailable ? macosPreset : linuxPreset)
-}
+//if (Idea.INSTANCE.active) {
+//    def manager = project.ext.hostManager
+//    def linuxPreset = kotlin.presets.linuxX64
+//    def macosPreset = kotlin.presets.macosX64
+//    // linux should be always available (cross-compilation capable) -- use it as default
+//    assert manager.isEnabled(linuxPreset.konanTarget)
+//    // use macOS libs for nativeDarwin if available
+//    def macosAvailable = manager.isEnabled(macosPreset.konanTarget)
+//    // configure source sets
+//    configureNativeSourceSetPreset("native", linuxPreset)
+//    configureNativeSourceSetPreset("nativeOther", linuxPreset)
+//    configureNativeSourceSetPreset("nativeDarwin", macosAvailable ? macosPreset : linuxPreset)
+//}
 
 kotlin.sourceSets {
     jvmMain.dependencies {
@@ -194,7 +183,7 @@ jvmTest {
     enableAssertions = true
     systemProperty 'java.security.manager', 'kotlinx.coroutines.TestSecurityManager'
     // 'stress' is required to be able to run all subpackage tests like ":jvmTests --tests "*channels*" -Pstress=true"
-    if (!project.ext.ideaActive && rootProject.properties['stress'] == null) {
+    if (!Idea.INSTANCE.active && rootProject.properties['stress'] == null) {
         exclude '**/*StressTest.*'
     }
     systemProperty 'kotlinx.coroutines.scheduler.keep.alive.sec', '100000' // any unpark problem hangs test
