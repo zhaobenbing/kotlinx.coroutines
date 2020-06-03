@@ -295,7 +295,7 @@ internal class DispatchedCoroutine<in T>(
     fun getResult(): Any? {
         if (trySuspend()) return COROUTINE_SUSPENDED
         // When scope coroutine does not suspend on Kotlin/Native it shall dispose its continuation which it will not use
-        disposeContinuation { uCont }
+//        disposeContinuation { uCont }
         // otherwise, onCompletionInternal was already invoked & invoked tryResume, and the result is in the state
         val state = this.state.unboxState()
         if (state is CompletedExceptionally) throw state.cause

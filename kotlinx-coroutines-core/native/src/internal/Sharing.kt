@@ -78,11 +78,6 @@ internal actual fun <T> Continuation<T>.shareableInterceptedResumeWith(result: R
     }
 }
 
-internal actual inline fun <T> Continuation<T>.shareableDispose() {
-    this as ShareableContinuation<T> // must have been shared
-    disposeRef()
-}
-
 internal actual fun <T, R> (suspend (T) -> R).asShareable(): suspend (T) -> R =
     ShareableBlock(this)
 

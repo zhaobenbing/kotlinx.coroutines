@@ -60,10 +60,6 @@ internal actual inline fun <T> Continuation<T>.shareableInterceptedResumeWith(re
 
 @InlineOnly
 @Suppress("NOTHING_TO_INLINE") // Should be NOP
-internal actual inline fun <T> Continuation<T>.shareableDispose() {}
-
-@InlineOnly
-@Suppress("NOTHING_TO_INLINE") // Should be NOP
 internal actual inline fun disposeContinuation(cont: () -> Continuation<*>) {}
 
 @InlineOnly

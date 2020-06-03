@@ -6,6 +6,7 @@ package kotlinx.coroutines
 
 import kotlinx.coroutines.internal.*
 import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 // --------------- cancellable continuations ---------------
 
@@ -182,9 +183,20 @@ public interface CancellableContinuation<in T> : Continuation<T> {
  * Suspends the coroutine like [suspendCoroutine], but providing a [CancellableContinuation] to
  * the [block]. This function throws a [CancellationException] if the coroutine is cancelled or completed while suspended.
  */
-public expect suspend inline fun <T> suspendCancellableCoroutine(
+public suspend inline fun <T> suspendCancellableCoroutine(
     crossinline block: (CancellableContinuation<T>) -> Unit
-): T
+): T =
+    suspendCoroutineUninterceptedOrReturn { uCont ->
+        val cancellable = CancellableContinuationImpl(uCont.intercepted(), resumeMode = MODE_CANCELLABLE)
+        /*
+         * For non-atomic cancellation we setup parent-child relationship immediately
+         * in case when `block` blocks the current thread (e.g. Rx2 with trampoline scheduler), but
+         * properly supports cancellation.
+         */
+        cancellable.initCancellability()
+        block(cancellable)
+        cancellable.getResult()
+    }
 
 /**
  * Suspends the coroutine like [suspendCancellableCoroutine], but with *atomic cancellation*.
@@ -197,19 +209,31 @@ public expect suspend inline fun <T> suspendCancellableCoroutine(
  * @suppress **This an internal API and should not be used from general code.**
  */
 @InternalCoroutinesApi
-public expect suspend inline fun <T> suspendAtomicCancellableCoroutine(
+public suspend inline fun <T> suspendAtomicCancellableCoroutine(
     crossinline block: (CancellableContinuation<T>) -> Unit
-): T
+): T =
+    suspendCoroutineUninterceptedOrReturn { uCont ->
+        val cancellable = CancellableContinuationImpl(uCont.intercepted(), resumeMode = MODE_ATOMIC_DEFAULT)
+        block(cancellable)
+        cancellable.getResult()
+    }
 
 /**
  *  Suspends coroutine similar to [suspendAtomicCancellableCoroutine], but an instance of [CancellableContinuationImpl] is reused if possible.
  */
-internal expect suspend inline fun <T> suspendAtomicCancellableCoroutineReusable(
+internal suspend inline fun <T> suspendAtomicCancellableCoroutineReusable(
     crossinline block: (CancellableContinuation<T>) -> Unit
-): T
+): T = suspendCoroutineUninterceptedOrReturn { uCont ->
+    val cancellable = getOrCreateCancellableContinuation(uCont.intercepted())
+    block(cancellable)
+    cancellable.getResult()
+}
 
 internal fun <T> getOrCreateCancellableContinuation(delegate: Continuation<T>): CancellableContinuationImpl<T> {
-    if (delegate !is DispatchedContinuation<T>) {
+    // If used outside of our dispatcher
+    // NOTE: Reuse is not support on Kotlin/Native due to platform peculiarities making it had to properly
+    //       split DispatchedContinuation / CancellableContinuationImpl state across workers.
+    if (!isReuseSupportedInPlatform() || delegate !is DispatchedContinuation<T> ) {
         return CancellableContinuationImpl(delegate, resumeMode = MODE_ATOMIC_DEFAULT)
     }
     /*

@@ -18,7 +18,6 @@ internal expect fun <T> Continuation<T>.asLocalOrNullIfNotUsed() : Continuation<
 internal expect fun <T> Continuation<T>.useLocal() : Continuation<T>
 internal expect fun <T> Continuation<T>.shareableInterceptedResumeCancellableWith(result: Result<T>)
 internal expect fun <T> Continuation<T>.shareableInterceptedResumeWith(result: Result<T>)
-internal expect fun <T> Continuation<T>.shareableDispose()
 internal expect fun disposeContinuation(cont: () -> Continuation<*>)
 internal expect fun <T> CancellableContinuationImpl<T>.shareableResume(delegate: Continuation<T>, useMode: Int)
 
