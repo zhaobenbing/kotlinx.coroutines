@@ -382,15 +382,11 @@ internal abstract class AbstractSendChannel<E> : SendChannel<E> {
                         select.disposeOnSelect(node)
                         return
                     }
-                    enqueueResult is Closed<*> -> {
-                        node.block.shareableDispose(useIt = true)
-                        throw recoverStackTrace(helpCloseAndGetSendException(enqueueResult))
-                    }
+                    enqueueResult is Closed<*> -> throw recoverStackTrace(helpCloseAndGetSendException(enqueueResult))
                     enqueueResult === ENQUEUE_FAILED -> {} // try to offer
                     enqueueResult is Receive<*> -> {} // try to offer
                     else -> error("enqueueSend returned $enqueueResult ")
                 }
-                node.block.shareableDispose(useIt = true)
             }
             // hm... receiver is waiting or buffer is not full. try to offer
             val offerResult = offerSelectInternal(element, select)
@@ -457,14 +453,13 @@ internal abstract class AbstractSendChannel<E> : SendChannel<E> {
         @JvmField val block: suspend (SendChannel<E>) -> R = block.asShareable()
 
         override fun tryResumeSend(otherOp: PrepareOp?): Symbol? =
-            select.trySelectOther(otherOp, onSelect = block::shareableWillBeUsed) as Symbol? // must return symbol
+            select.trySelectOther(otherOp) as Symbol? // must return symbol
 
         override fun completeResumeSend() {
             startCoroutine(CoroutineStart.ATOMIC, channel, select.completion, block)
         }
 
         override fun dispose() { // invoked on select completion
-            block.shareableDispose(useIt = false)
             remove()
         }
 
@@ -780,11 +775,7 @@ internal abstract class AbstractChannel<E> : AbstractSendChannel<E>(), Channel<E
     ): Boolean {
         val node = ReceiveSelect(this, select, block, receiveMode)
         val result = enqueueReceive(node)
-        if (result) {
-            select.disposeOnSelect(node)
-        } else {
-            node.block.shareableDispose(useIt = true)
-        }
+        if (result) select.disposeOnSelect(node)
         return result
     }
 
@@ -963,7 +954,7 @@ internal abstract class AbstractChannel<E> : AbstractSendChannel<E>(), Channel<E
         @JvmField val block: suspend (Any?) -> R = block.asShareable() // captured variables in this block need screening
 
         override fun tryResumeReceive(value: E, otherOp: PrepareOp?): Symbol? =
-            select.trySelectOther(otherOp, onSelect = block::shareableWillBeUsed) as Symbol?
+            select.trySelectOther(otherOp) as Symbol?
 
         @Suppress("UNCHECKED_CAST")
         override fun completeResumeReceive(value: E) {
@@ -971,24 +962,19 @@ internal abstract class AbstractChannel<E> : AbstractSendChannel<E>(), Channel<E
         }
 
         override fun resumeReceiveClosed(closed: Closed<*>) {
-            if (!select.trySelect(onSelect = block::shareableWillBeUsed)) return
+            if (!select.trySelect()) return
             when (receiveMode) {
-                RECEIVE_THROWS_ON_CLOSE -> {
-                    block.shareableDispose(useIt = true)
-                    select.resumeSelectWithException(closed.receiveException)
-                }
+                RECEIVE_THROWS_ON_CLOSE -> select.resumeSelectWithException(closed.receiveException)
                 RECEIVE_RESULT -> startCoroutine(CoroutineStart.ATOMIC, ValueOrClosed.closed<R>(closed.closeCause), select.completion, block)
                 RECEIVE_NULL_ON_CLOSE -> if (closed.closeCause == null) {
                     startCoroutine(CoroutineStart.ATOMIC, null, select.completion, block)
                 } else {
-                    block.shareableDispose(useIt = true)
                     select.resumeSelectWithException(closed.receiveException)
                 }
             }
         }
 
         override fun dispose() { // invoked on select completion
-            block.shareableDispose(useIt = false)
             if (remove())
                 channel.onReceiveDequeued() // notify cancellation of receive
         }

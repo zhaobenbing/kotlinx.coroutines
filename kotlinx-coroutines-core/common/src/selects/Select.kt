@@ -116,7 +116,7 @@ public interface SelectInstance<in R> {
     /**
      * Tries to select this instance. Returns `true` on success.
      */
-    public fun trySelect(onSelect: () -> Unit = {}): Boolean
+    public fun trySelect(): Boolean
 
     /**
      * Tries to select this instance. Returns:
@@ -130,7 +130,7 @@ public interface SelectInstance<in R> {
      * member is public, but [Symbol] is internal. When [SelectInstance] becomes a `sealed interface`
      * (see KT-222860) we can declare this method as internal.
      */
-    public fun trySelectOther(otherOp: PrepareOp?, onSelect: () -> Unit): Any?
+    public fun trySelectOther(otherOp: PrepareOp?): Any?
 
     /**
      * Performs action atomically with [trySelect].
@@ -282,10 +282,7 @@ internal class SelectBuilderImpl<in R>(
             when {
                 result === UNDECIDED -> {
                     val update = value()
-                    if (_result.compareAndSet(UNDECIDED, update)) {
-                        uCont.shareableDispose() // will return result without calling continuation
-                        return
-                    }
+                    if (_result.compareAndSet(UNDECIDED, update)) return
                 }
                 result === COROUTINE_SUSPENDED -> if (_result.compareAndSet(COROUTINE_SUSPENDED, RESUMED)) {
                     block()
@@ -397,8 +394,8 @@ internal class SelectBuilderImpl<in R>(
         disposeLockFreeLinkedList { this }
     }
 
-    override fun trySelect(onSelect: () -> Unit): Boolean {
-        val result = trySelectOther(null, onSelect)
+    override fun trySelect(): Boolean {
+        val result = trySelectOther(null)
         return when {
             result === RESUME_TOKEN -> true
             result == null -> false
@@ -491,7 +488,7 @@ internal class SelectBuilderImpl<in R>(
 
     // it is just like plain trySelect, but support idempotent start
     // Returns RESUME_TOKEN | RETRY_ATOMIC | null (when already selected)
-    override fun trySelectOther(otherOp: PrepareOp?, onSelect: () -> Unit): Any? {
+    override fun trySelectOther(otherOp: PrepareOp?): Any? {
         _state.loop { state -> // lock-free loop on state
             when {
                 // Found initial state (not selected yet) -- try to make it selected
@@ -506,7 +503,6 @@ internal class SelectBuilderImpl<in R>(
                         val decision = pairSelectOp.perform(this)
                         if (decision !== null) return decision
                     }
-                    onSelect()
                     doAfterSelect()
                     return RESUME_TOKEN
                 }

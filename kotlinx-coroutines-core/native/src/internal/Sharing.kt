@@ -86,16 +86,6 @@ internal actual inline fun <T> Continuation<T>.shareableDispose() {
 internal actual fun <T, R> (suspend (T) -> R).asShareable(): suspend (T) -> R =
     ShareableBlock(this)
 
-internal actual fun <T, R> (suspend (T) -> R).shareableDispose(useIt: Boolean) {
-    this as ShareableBlock<*, *> // must have been shared
-    dispose(useIt)
-}
-
-internal actual fun <T, R> (suspend (T) -> R).shareableWillBeUsed() {
-    this as ShareableBlock<*, *> // must have been shared
-    willBeUsed()
-}
-
 @PublishedApi
 internal actual inline fun disposeContinuation(cont: () -> Continuation<*>) {
     (cont() as ShareableContinuation<*>).disposeRef()
@@ -229,27 +219,9 @@ private typealias Fun2<T, R> = Function2<T, Continuation<R>, Any?>
 private class ShareableBlock<T, R>(
     block: Block1<T, R>
 ) : ShareableObject<Block1<T, R>>(block), Block1<T, R>, SuspendFunction<R>, Fun2<T, R> {
-    private val willBeUsed = atomic(false)
-
     override suspend fun invoke(param: T): R = useRef().invoke(param)
 
     @Suppress("UNCHECKED_CAST")
     override fun invoke(param: T, cont: Continuation<R>): Any? =
         (useRef() as Fun2<T, R>).invoke(param, cont)
-
-    fun willBeUsed() {
-        willBeUsed.value = true
-    }
-
-    fun dispose(useIt: Boolean) {
-        if (willBeUsed.value && !useIt) return
-        val thread = ownerThreadOrNull ?: return
-        if (currentThread() == thread) {
-            disposeRef()
-        } else {
-            thread.execute {
-                disposeRef()
-            }
-        }
-    }
 }

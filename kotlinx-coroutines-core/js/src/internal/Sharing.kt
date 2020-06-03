@@ -58,12 +58,6 @@ internal actual inline fun <T> CancellableContinuationImpl<T>.shareableResume(de
 @Suppress("NOTHING_TO_INLINE") // Should be NOP
 internal actual inline fun <T, R> (suspend (T) -> R).asShareable(): suspend (T) -> R = this
 
-@Suppress("NOTHING_TO_INLINE") // Should be NOP
-internal actual inline fun <T, R> (suspend (T) -> R).shareableDispose(useIt: Boolean) {}
-
-@Suppress("NOTHING_TO_INLINE") // Should be NOP
-internal actual inline fun <T, R> (suspend (T) -> R).shareableWillBeUsed() {}
-
 @Suppress("NOTHING_TO_INLINE") // Save an entry on call stack
 internal actual inline fun isReuseSupportedInPlatform() = true
 
