@@ -4,4 +4,5 @@
 
 package kotlinx.coroutines
 
+// It is used in the main sources of native-mt branch
 internal expect inline fun workerMain(block: () -> Unit)
