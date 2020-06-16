@@ -88,11 +88,35 @@ internal fun runEventLoop(eventLoop: EventLoop?, isCompleted: () -> Boolean) {
 
 // --------------- Kotlin/Native specialization hooks ---------------
 
+// just start
 internal actual fun <T, R> startCoroutine(
     start: CoroutineStart,
     receiver: R,
     completion: Continuation<T>,
     block: suspend R.() -> T
+) =
+    startCoroutine(start, receiver, completion, block) {}
+
+// initParentJob + startCoroutine
+internal actual fun <T, R> startAbstractCoroutine(
+    start: CoroutineStart,
+    receiver: R,
+    coroutine: AbstractCoroutine<T>,
+    block: suspend R.() -> T
+) {
+    // See https://github.com/Kotlin/kotlinx.coroutines/issues/2064
+    // We shall do initParentJob only after freezing the block
+    startCoroutine(start, receiver, coroutine, block) {
+        coroutine.initParentJob()
+    }
+}
+
+private fun <T, R> startCoroutine(
+    start: CoroutineStart,
+    receiver: R,
+    completion: Continuation<T>,
+    block: suspend R.() -> T,
+    initParentJobIfNeeded: () -> Unit
 ) {
     val curThread = currentThread()
     val newThread = completion.context[ContinuationInterceptor].thread()
@@ -100,6 +124,8 @@ internal actual fun <T, R> startCoroutine(
         check(start != CoroutineStart.UNDISPATCHED) {
             "Cannot start an undispatched coroutine in another thread $newThread from current $curThread"
         }
+        block.freeze() // freeze the block, safely get FreezingException if it cannot be frozen
+        initParentJobIfNeeded() // only initParentJob here if needed
         if (start != CoroutineStart.LAZY) {
             newThread.execute {
                 startCoroutineImpl(start, receiver, completion, block)
@@ -107,6 +133,7 @@ internal actual fun <T, R> startCoroutine(
         }
         return
     }
+    initParentJobIfNeeded()
     startCoroutineImpl(start, receiver, completion, block)
 }
 

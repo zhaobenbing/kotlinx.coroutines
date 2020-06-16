@@ -18,6 +18,17 @@ internal actual inline fun <T, R> startCoroutine(
     startCoroutineImpl(start, receiver, completion, block)
 
 @Suppress("NOTHING_TO_INLINE") // Save an entry on call stack
+internal actual inline fun <T, R> startAbstractCoroutine(
+    start: CoroutineStart,
+    receiver: R,
+    coroutine: AbstractCoroutine<T>,
+    noinline block: suspend R.() -> T
+) {
+    coroutine.initParentJob()
+    startCoroutineImpl(start, receiver, coroutine, block)
+}
+
+@Suppress("NOTHING_TO_INLINE") // Save an entry on call stack
 internal actual inline fun <T, R> saveLazyCoroutine(
     coroutine: AbstractCoroutine<T>,
     receiver: R,

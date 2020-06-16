@@ -326,5 +326,17 @@ class WorkerDispatcherTest : TestBase() {
         finish(2)
     }
 
+    @Test
+    fun testEnsureNeverFrozenWithContext() = runTest {
+        expect(1)
+        val x = Data("OK")
+        x.ensureNeverFrozen()
+        assertFailsWith<FreezingException> {
+            val s = withContext(dispatcher) { x.s }
+            println(s) // does not actually execute
+        }
+        finish(2)
+    }
+
     private data class Data(val s: String)
 }

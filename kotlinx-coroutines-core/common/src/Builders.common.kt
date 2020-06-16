@@ -156,8 +156,7 @@ public suspend fun <T> withContext(
     }
     // SLOW PATH -- use new dispatcher
     val coroutine = DispatchedCoroutine(newContext, uCont)
-    coroutine.initParentJob()
-    startCoroutine(CoroutineStart.DEFAULT, coroutine, coroutine, block)
+    coroutine.start(CoroutineStart.DEFAULT, coroutine, block)
     coroutine.getResult()
 }
 
@@ -191,6 +190,14 @@ internal expect fun <T, R> startCoroutine(
     start: CoroutineStart,
     receiver: R,
     completion: Continuation<T>,
+    block: suspend R.() -> T
+)
+
+// initParentJob + startCoroutine
+internal expect fun <T, R> startAbstractCoroutine(
+    start: CoroutineStart,
+    receiver: R,
+    coroutine: AbstractCoroutine<T>,
     block: suspend R.() -> T
 )
 

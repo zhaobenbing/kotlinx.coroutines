@@ -137,7 +137,6 @@ public abstract class AbstractCoroutine<in T>(
      * * [LAZY] does nothing.
      */
     public fun <R> start(start: CoroutineStart, receiver: R, block: suspend R.() -> T) {
-        initParentJob()
-        startCoroutine(start, receiver, this, block)
+        startAbstractCoroutine(start, receiver, this, block)
     }
 }
