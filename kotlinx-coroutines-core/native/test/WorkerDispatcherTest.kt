@@ -313,5 +313,18 @@ class WorkerDispatcherTest : TestBase() {
         finish(6)
     }
 
+    @Test
+    fun testAwaitAll() = runTest {
+        expect(1)
+        val d1 = async(dispatcher) {
+            "A"
+        }
+        val d2 = async(dispatcher) {
+            "B"
+        }
+        assertEquals("AB", awaitAll(d1, d2).joinToString(""))
+        finish(2)
+    }
+
     private data class Data(val s: String)
 }
