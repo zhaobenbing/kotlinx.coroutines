@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.internal.*
 import kotlinx.coroutines.internal.*
 import kotlin.coroutines.*
 
-// Note: Always guarantee FIFO processing of slots by keeping a doubly-linked list of them
 internal abstract class AbstractSharedFlowSlot<F> {
     abstract fun allocateLocked(flow: F): Boolean
     abstract fun freeLocked(flow: F): List<Continuation<Unit>>? // returns a list of continuation to resume after lock
