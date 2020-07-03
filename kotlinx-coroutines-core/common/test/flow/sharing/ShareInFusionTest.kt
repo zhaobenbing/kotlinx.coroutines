@@ -33,7 +33,7 @@ class ShareInFusionTest : TestBase() {
     }
 
     /**
-     * Tests that `channelFlow { ... }.buffer(x)` works according to [channelFlow] docs and subsequent
+     * Tests that `channelFlow { ... }.buffer(x)` works according to the [channelFlow] docs, and subsequent
      * application of [shareIn] does not leak upstream.
      */
     @Test

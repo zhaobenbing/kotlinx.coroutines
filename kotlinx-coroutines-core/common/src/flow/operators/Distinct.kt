@@ -19,7 +19,7 @@ import kotlin.jvm.*
  */
 public fun <T> Flow<T>.distinctUntilChanged(): Flow<T> =
     when {
-        this is DistinctFlow<*> && isDefaultEquivalence -> this // some other internal impls beyond StateFlow are distinct, too
+        this is DistinctFlow<*> && isDefaultEquivalence -> this // some other internal impls beyond StateFlow are distinct too
         else -> distinctUntilChangedBy(keySelector = defaultKeySelector, areEquivalent = defaultAreEquivalent)
     }
 
@@ -46,7 +46,7 @@ private val defaultAreEquivalent: (Any?, Any?) -> Boolean = { old, new -> old ==
  * keys are extracted with [keySelector] function and compared with each other via the
  * provided [areEquivalent] function.
  *
- * NOTE: It is non-inline to share a single implelenting class.
+ * NOTE: It is non-inline to share a single implementing class.
  */
 private fun <T> Flow<T>.distinctUntilChangedBy(
     keySelector: (T) -> Any?,

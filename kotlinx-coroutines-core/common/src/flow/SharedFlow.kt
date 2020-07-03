@@ -18,22 +18,22 @@ import kotlin.native.concurrent.*
  * presence of collectors. This is opposed to a regular [Flow], such as defined by the [`flow { ... }`][flow] function,
  * which is _cold_ and is started separately for each collector.
  *
- * **Shared flow never completes**. A call to [Flow.collect] on a shared flow never completes normally and
- * so does a coroutine started by [Flow.launchIn] function. An active collector of a shared flow is called a _subscriber_.
+ * **Shared flow never completes**. A call to [Flow.collect] on a shared flow never completes normally, and
+ * neither does a coroutine started by the [Flow.launchIn] function. An active collector of a shared flow is called a _subscriber_.
  *
- * A subscriber of a shared flow can be cancelled, which usually happens when the scope the coroutine is running
- * in is cancelled. A subscriber to a shared flow in always [cancellable][Flow.cancellable] and checks for
- * cancellation before each emission. Note that most terminal operators like [Flow.toList] would not complete, too,
+ * A subscriber of a shared flow can be cancelled. This usually happens when the scope in which the coroutine is running
+ * is cancelled. A subscriber to a shared flow is always [cancellable][Flow.cancellable], and checks for
+ * cancellation before each emission. Note that most terminal operators like [Flow.toList] would also not complete,
  * when applied to a shared flow, but flow-truncating operators like [Flow.take] and [Flow.takeWhile] can be used on a
  * shared flow to turn it into a completing one.
  *
- * A [mutable shared flow][MutableSharedFlow] is created using [MutableSharedFlow(...)] constructor function.
+ * A [mutable shared flow][MutableSharedFlow] is created using the [MutableSharedFlow(...)] constructor function.
  * Its state can be updated by [emitting][MutableSharedFlow.emit] values to it and performing other operations.
- * See [MutableSharedFlow] documentation for details.
+ * See the [MutableSharedFlow] documentation for details.
  *
- * [SharedFlow] is useful to broadcast events that happens inside application to subscribers that can come and go.
+ * [SharedFlow] is useful for broadcasting events that happen inside an application to subscribers that can come and go.
  * For example, the following class encapsulates an event bus that distributes events to all subscribers
- * in _rendezvous_ manner, suspending until all subscribers process each event:
+ * in a _rendezvous_ manner, suspending until all subscribers process each event:
  *
  * ```
  * class EventBus {
@@ -46,27 +46,27 @@ import kotlin.native.concurrent.*
  * }
  * ```
  *
- * As an alternative to the above usage with `MutableSharedFlow(...)` constructor function,
- * any _cold_ [Flow] can be converted to a shared flow using [shareIn] operator.
+ * As an alternative to the above usage with the `MutableSharedFlow(...)` constructor function,
+ * any _cold_ [Flow] can be converted to a shared flow using the [shareIn] operator.
  *
- * There is a specialized implementation of shared flow for a case where the most recent state value needs
+ * There is a specialized implementation of shared flow for the case where the most recent state value needs
  * to be shared. See [StateFlow] for details.
  *
  * ### Replay cache and buffer
  *
- * A shared flow keeps a specific number of the most recent values in its _replay cache_. Every new subscribers first
- * gets the values from the replay cache and then gets new emitted values. The maximal size of the replay cache is
+ * A shared flow keeps a specific number of the most recent values in its _replay cache_. Every new subscriber first
+ * gets the values from the replay cache and then gets new emitted values. The maximum size of the replay cache is
  * specified when the shared flow is created by the `replay` parameter. A snapshot of the current replay cache
- * is available via [replayCache] property and it can be reset with [MutableSharedFlow.resetReplayCache] function.
+ * is available via the [replayCache] property and it can be reset with the [MutableSharedFlow.resetReplayCache] function.
  *
- * A replay cache provides buffer for emissions to the shared flow. Buffer space allows slow subscribers to
+ * A replay cache also provides buffer for emissions to the shared flow, allowing slow subscribers to
  * get values from the buffer without suspending emitters. The buffer space determines how much slow subscribers
- * can lag from the fast ones. When creating a shared flow additional buffer capacity beyond replay can be reserved
- * using `extraBufferCapacity` parameter.
+ * can lag from the fast ones. When creating a shared flow, additional buffer capacity beyond replay can be reserved
+ * using the `extraBufferCapacity` parameter.
  * 
  * A shared flow with a buffer can be configured to avoid suspension of emitters on buffer overflow using
- * `onBufferOverflow` parameter, which is equal to one of the entries of [BufferOverflow] enum. When a strategy other
- * than [SUSPENDED][BufferOverflow.SUSPEND] is configured emissions to the shared flow never suspend.
+ * the `onBufferOverflow` parameter, which is equal to one of the entries of the [BufferOverflow] enum. When a strategy other
+ * than [SUSPENDED][BufferOverflow.SUSPEND] is configured, emissions to the shared flow never suspend.
  *
  * ### SharedFlow vs BroadcastChannel
  *
@@ -79,9 +79,9 @@ import kotlin.native.concurrent.*
  * * `SharedFlow` supports configurable replay and buffer overflow strategy.
  * * `SharedFlow` has a clear separation into a read-only `SharedFlow` interface and a [MutableSharedFlow].
  * * `SharedFlow` cannot be closed like `BroadcastChannel` and can never represent a failure.
- *    All errors and completion signals shall be explicitly _materialized_ if needed.
+ *    All errors and completion signals should be explicitly _materialized_ if needed.
  *
- * To migrate [BroadcastChannel] usage to [SharedFlow] start by replacing `BroadcastChannel(capacity)`
+ * To migrate [BroadcastChannel] usage to [SharedFlow], start by replacing usages of the `BroadcastChannel(capacity)`
  * constructor with `MutableSharedFlow(0, extraBufferCapacity=capacity)` (broadcast channel does not replay
  * values to new subscribers). Replace [send][BroadcastChannel.send] and [offer][BroadcastChannel.offer] calls
  * with [emit][MutableStateFlow.emit] and [tryEmit][MutableStateFlow.tryEmit], and convert subscribers' code to flow operators.
@@ -104,9 +104,9 @@ import kotlin.native.concurrent.*
  *
  * ### Not stable for inheritance
  *
- * **`SharedFlow` interface is not stable for inheritance in 3rd party libraries**, as new methods
+ * **The `SharedFlow` interface is not stable for inheritance in 3rd party libraries**, as new methods
  * might be added to this interface in the future, but is stable for use.
- * Use `MutableSharedFlow(replay, ...)` constructor function to create an implementation.
+ * Use the `MutableSharedFlow(replay, ...)` constructor function to create an implementation.
  */
 @ExperimentalCoroutinesApi
 public interface SharedFlow<out T> : Flow<T> {
@@ -118,12 +118,12 @@ public interface SharedFlow<out T> : Flow<T> {
 
 /**
  * A mutable [SharedFlow] that provides functions to [emit] values to the flow.
- * Its instance with the given configuration parameters can be created using `MutableSharedFlow(...)`
+ * An instance of `MutableSharedFlow` with the given configuration parameters can be created using `MutableSharedFlow(...)`
  * constructor function.
  *
- * See [SharedFlow] documentation for details on shared flows.
+ * See the [SharedFlow] documentation for details on shared flows.
  *
- * `MutableSharedFlow` is a [SharedFlow] that also provides abilities to [emit] a value,
+ * `MutableSharedFlow` is a [SharedFlow] that also provides the abilities to [emit] a value,
  * to [tryEmit] without suspension if possible, to track the [subscriptionCount],
  * and to [resetReplayCache].
  *
@@ -134,25 +134,25 @@ public interface SharedFlow<out T> : Flow<T> {
  *
  * ### Not stable for inheritance
  *
- * **`MutableSharedFlow` interface is not stable for inheritance in 3rd party libraries**, as new methods
+ * **The `MutableSharedFlow` interface is not stable for inheritance in 3rd party libraries**, as new methods
  * might be added to this interface in the future, but is stable for use.
- * Use `MutableSharedFlow(...)` constructor function to create an implementation.
+ * Use the `MutableSharedFlow(...)` constructor function to create an implementation.
  */
 @ExperimentalCoroutinesApi
 public interface MutableSharedFlow<T> : SharedFlow<T>, FlowCollector<T> {
     /**
      * Tries to emit a [value] to this shared flow without suspending. It returns `true` if the value was
-     * emitted successfully. When this function returns `false` it means that the call to a plain [emit]
+     * emitted successfully. When this function returns `false`, it means that the call to a plain [emit]
      * function will suspend until there is a buffer space available.
      *
-     * A shared flow configured with [BufferOverflow] strategy other than [SUSPEND][BufferOverflow.SUSPEND]
+     * A shared flow configured with a [BufferOverflow] strategy other than [SUSPEND][BufferOverflow.SUSPEND]
      * (either [DROP_OLDEST][BufferOverflow.DROP_OLDEST] or [DROP_LATEST][BufferOverflow.DROP_LATEST]) never
-     * suspends on [emit] and thus `tryEmit` to such a shared flow always returns `true`.
+     * suspends on [emit], and thus `tryEmit` to such a shared flow always returns `true`.
      */
     public fun tryEmit(value: T): Boolean
 
     /**
-     * A number of subscribers (active collectors) to this shared flow.
+     * The number of subscribers (active collectors) to this shared flow.
      *
      * This state can be used to react to changes in the number of subscriptions to this shared flow.
      * For example, if you need to call `onActive` function when the first subscriber appears and `onInactive`
@@ -171,29 +171,28 @@ public interface MutableSharedFlow<T> : SharedFlow<T>, FlowCollector<T> {
     public val subscriptionCount: StateFlow<Int>
 
     /**
-     * Resets [replayCache] of this shared flow to an empty state.
-     * New subscribers will be receiving only the values emitted after this call,
+     * Resets the [replayCache] of this shared flow to an empty state.
+     * New subscribers will be receiving only the values that were emitted after this call,
      * while old subscribers will still be receiving previously buffered values.
-     * To reset a shared flow to an initial value, emit this value after this call.
+     * To reset a shared flow to an initial value, emit the value after this call.
      *
      * On a [MutableStateFlow], which always contains a single value, this function is not
-     * supported and throws [UnsupportedOperationException]. To reset a [MutableStateFlow]
-     * to an initial value just update its [value][MutableStateFlow.value].
+     * supported, and throws an [UnsupportedOperationException]. To reset a [MutableStateFlow]
+     * to an initial value, just update its [value][MutableStateFlow.value].
      */
-    @Suppress("UNCHECKED_CAST")
     public fun resetReplayCache()
 }
 
 /**
  * Creates a [MutableSharedFlow] with the given configuration parameters.
  *
- * This function throws [IllegalArgumentException] on unsupported values of parameters of combinations thereof.
+ * This function throws [IllegalArgumentException] on unsupported values of parameters or combinations thereof.
  *
  * @param replay the number of values replayed to new subscribers (cannot be negative).
  * @param extraBufferCapacity the number of values buffered in addition to `replay`.
  *   [emit][MutableSharedFlow.emit] does not suspend while there is a buffer space remaining (optional, cannot be negative, defaults to zero).
  * @param onBufferOverflow configures an action on buffer overflow (optional, defaults to
- *   [suspending][BufferOverflow.SUSPEND] attempt to [emit][MutableSharedFlow.emit] a value,
+ *   [suspending][BufferOverflow.SUSPEND] attempts to [emit][MutableSharedFlow.emit] a value,
  *   supported only when `replay > 0` or `extraBufferCapacity > 0`).
  */
 @Suppress("FunctionName", "UNCHECKED_CAST")
@@ -341,7 +340,7 @@ private class SharedFlowImpl<T>(
         // Fast path without collectors -> no buffering
         if (nCollectors == 0) return tryEmitNoCollectorsLocked(value) // always returns true
         // With collectors we'll have to buffer
-        // cannot emit now if buffer is full && blocked by slow collectors
+        // cannot emit now if buffer is full & blocked by slow collectors
         if (bufferSize >= bufferCapacity && minCollectorIndex <= replayIndex) {
             when (onBufferOverflow) {
                 BufferOverflow.SUSPEND -> return false // will suspend
@@ -448,7 +447,7 @@ private class SharedFlowImpl<T>(
         return index
     }
 
-    // Is called when collector disappears of changes index, returns a list of continuations to resume after lock
+    // Is called when a collector disappears or changes index, returns a list of continuations to resume after lock
     internal fun updateCollectorIndexLocked(oldIndex: Long): List<Continuation<Unit>>? {
         assert { oldIndex >= minCollectorIndex }
         if (oldIndex > minCollectorIndex) return null // nothing changes, it was not min
@@ -520,7 +519,7 @@ private class SharedFlowImpl<T>(
         assert { newHead >= head }
         // cleanup items we don't have to buffer anymore (because head is about to move)
         for (index in head until newHead) buffer!!.setBufferAt(index, null)
-        // update all state variable to newly computed values
+        // update all state variables to newly computed values
         replayIndex = newReplayIndex
         minCollectorIndex = newMinCollectorIndex
         bufferSize = (newBufferEndIndex - newHead).toInt()
@@ -531,7 +530,7 @@ private class SharedFlowImpl<T>(
         assert { replayIndex <= this.head + bufferSize }
     }
 
-    // :todo:
+    // Removes all the NO_VALUE items from the end of the queue and reduces its size
     private fun cleanupTailLocked() {
         // If we have synchronous case, then keep one emitter queued
         if (bufferCapacity == 0 && queueSize <= 1) return // return, don't clear it
@@ -563,7 +562,7 @@ private class SharedFlowImpl<T>(
 
     // returns -1 if cannot peek value without suspension
     private fun tryPeekLocked(slot: SharedFlowSlot): Long {
-        // return buffered value is possible
+        // return buffered value if possible
         val index = slot.index
         if (index < bufferEndIndex) return index
         if (bufferCapacity > 0) return -1L // if there's a buffer, never try to rendezvous with emitters

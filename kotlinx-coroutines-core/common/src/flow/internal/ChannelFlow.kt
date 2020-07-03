@@ -25,7 +25,7 @@ public interface FusibleFlow<T> : Flow<T> {
     /**
      * This function is called by [flowOn] (with context) and [buffer] (with capacity) operators
      * that are applied to this flow. Should not be used with [capacity] of [Channel.CONFLATED]
-     * (shall be desugared to `capacity = 0, onBufferOverflow = DROP_OLDEST`).
+     * (it shall be desugared to `capacity = 0, onBufferOverflow = DROP_OLDEST`).
      */
     public fun fuse(
         context: CoroutineContext = EmptyCoroutineContext,
@@ -64,8 +64,8 @@ public abstract class ChannelFlow<T>(
 
     /**
      * When this [ChannelFlow] implementation can work without a channel (supports [Channel.OPTIONAL_CHANNEL]),
-     * then it should return non-null value from this function, so that a caller can used it without effect of
-     * additional [flowOn] and [buffer] operators by incorporating its
+     * then it should return a non-null value from this function, so that a caller can use it without the effect of
+     * additional [flowOn] and [buffer] operators, by incorporating its
      * [context], [capacity], and [onBufferOverflow] into its own implementation.
      */
     public open fun dropChannelOperators(): Flow<T>? = null
@@ -107,7 +107,7 @@ public abstract class ChannelFlow<T>(
 
     protected abstract suspend fun collectTo(scope: ProducerScope<T>)
 
-    // broadcastImpl is used in broadcastIn operator which is obsolete and is replace by SharedFlow.
+    // broadcastImpl is used in broadcastIn operator which is obsolete and replaced by SharedFlow.
     // BroadcastChannel does not support onBufferOverflow beyond simple conflation
     public open fun broadcastImpl(scope: CoroutineScope, start: CoroutineStart): BroadcastChannel<T> {
         val broadcastCapacity = when (onBufferOverflow) {

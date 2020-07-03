@@ -21,7 +21,7 @@ class ShareInConflationTest : TestBase() {
         op: suspend Flow<Int>.(CoroutineScope) -> Flow<Int>
     ) = runTest {
         expect(1)
-        // emit all and conflate / then should collect bufferCapacity latest ones
+        // emit all and conflate, then should collect bufferCapacity latest ones
         val done = Job()
         flow {
             repeat(n) { i ->
@@ -52,7 +52,7 @@ class ShareInConflationTest : TestBase() {
             conflate().shareIn(it, 1)
         }
 
-    @Test // still looks like conflating the last value for the first subscriber (will not replay to others, though)
+    @Test // still looks like conflating the last value for the first subscriber (will not replay to others though)
     fun testConflateReplay0() =
         checkConflation(1) {
             conflate().shareIn(it, 0)

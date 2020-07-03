@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.internal.*
 import kotlin.time.*
 
 /**
- * A command emitted by [SharingStarted] implementation to control the sharing coroutine in
- * [shareIn] and [stateIn] operators.
+ * A command emitted by [SharingStarted] implementations to control the sharing coroutine in
+ * the [shareIn] and [stateIn] operators.
  */
 @ExperimentalCoroutinesApi
 public enum class SharingCommand {
@@ -28,7 +28,7 @@ public enum class SharingCommand {
     STOP,
 
     /**
-     * Stops the sharing coroutine and resets [SharedFlow.replayCache] to its initial state.
+     * Stops the sharing coroutine and resets the [SharedFlow.replayCache] to its initial state.
      * The [shareIn] operator calls [MutableSharedFlow.resetReplayCache];
      * the [stateIn] operator resets the value to its original `initialValue`.
      */
@@ -36,12 +36,12 @@ public enum class SharingCommand {
 }
 
 /**
- * A strategy for starting and stopping sharing coroutine in [shareIn] and [stateIn] operators.
+ * A strategy for starting and stopping the sharing coroutine in [shareIn] and [stateIn] operators.
  *
  * This interface provides a set of built-in strategies: [Eagerly], [Lazily], [WhileSubscribed], and
  * supports custom strategies by implementing this interface's [command] function.
  *
- * For example, it is possible to define a custom strategy that starts upstream only when the number
+ * For example, it is possible to define a custom strategy that starts the upstream only when the number
  * of subscribers exceeds the given `threshold` and make it an extension on [SharingStarted.Companion] so
  * that it looks like a built-in strategy on the use-site:
  *
@@ -63,15 +63,15 @@ public enum class SharingCommand {
  * * [START][SharingCommand.START] &mdash; the upstream flow is stared.
  * * [STOP][SharingCommand.STOP] &mdash; the upstream flow is stopped.
  * * [STOP_AND_RESET_REPLAY_CACHE][SharingCommand.STOP_AND_RESET_REPLAY_CACHE] &mdash;
- *   th upstream flow is stopped and [SharedFlow.replayCache] is reset to its initial state.
+ *   the upstream flow is stopped and the [SharedFlow.replayCache] is reset to its initial state.
  *   The [shareIn] operator calls [MutableSharedFlow.resetReplayCache];
  *   the [stateIn] operator resets the value to its original `initialValue`.
  *   
- * Initially, the upstream flow is stopped and is in the initial state, so emission of additional
- * [STOP][SharingCommand.STOP] and [STOP_AND_RESET_REPLAY_CACHE][SharingCommand.STOP_AND_RESET_REPLAY_CACHE] will
+ * Initially, the upstream flow is stopped and is in the initial state, so the emission of additional
+ * [STOP][SharingCommand.STOP] and [STOP_AND_RESET_REPLAY_CACHE][SharingCommand.STOP_AND_RESET_REPLAY_CACHE] commands will
  * have no effect.
  *
- * The completion of the `command` flow normally has no effect (upstream flow keeps running if it was running).
+ * The completion of the `command` flow normally has no effect (the upstream flow keeps running if it was running).
  * The failure of the `command` flow cancels the sharing coroutine and the upstream flow.
  */
 @ExperimentalCoroutinesApi
@@ -95,11 +95,11 @@ public interface SharingStarted {
          *
          * It has the following optional parameters:
          *
-         * * [stopTimeoutMillis] &mdash; configures a delay (in milliseconds) between disappearance of the last
-         *   subscriber and stop of the sharing coroutine. It defaults to zero (stop immediately).
-         * * [replayExpirationMillis] &mdash; configures a delay (in milliseconds) between stop of
-         *   the sharing coroutine and reset of replay cache (makes cache empty for [shareIn] operator
-         *   and sets to the original `initialValue` for [stateIn] operator).
+         * * [stopTimeoutMillis] &mdash; configures a delay (in milliseconds) between the disappearance of the last
+         *   subscriber and the stopping of the sharing coroutine. It defaults to zero (stop immediately).
+         * * [replayExpirationMillis] &mdash; configures a delay (in milliseconds) between the stopping of
+         *   the sharing coroutine and the resetting of the replay cache (which makes the cache empty for the [shareIn] operator
+         *   and resets the cached value to the original `initialValue` for the [stateIn] operator).
          *   It defaults to `Long.MAX_VALUE` (keep replay cache forever, never reset buffer)
          *
          * This function throws [IllegalArgumentException] when either [stopTimeoutMillis] or [replayExpirationMillis]
@@ -116,7 +116,7 @@ public interface SharingStarted {
 
     /**
      * Transforms the [subscriptionCount][MutableSharedFlow.subscriptionCount] state of the shared flow into the
-     * flow of [commands][SharingCommand] that control sharing coroutine. See [SharingStarted] interface
+     * flow of [commands][SharingCommand] that control the sharing coroutine. See the [SharingStarted] interface
      * documentation for details.
      */
     public fun command(subscriptionCount: StateFlow<Int>): Flow<SharingCommand>
@@ -128,12 +128,12 @@ public interface SharingStarted {
  *
  * It has the following optional parameters:
  *
- * * [stopTimeout] &mdash; configures a delay between disappearance of the last
- *   subscriber and stop of the sharing coroutine. It defaults to zero (stop immediately).
- * * [replayExpiration] &mdash; configures a delay between stop of
- *   the sharing coroutine and reset of replay cache (makes cache empty for [shareIn] operator
- *   and sets to the original `initialValue` for [stateIn] operator).
- *   It defaults to [Duration.INFINITE] (keep replay cache forever, never reset buffer)
+ * * [stopTimeout] &mdash; configures a delay between the disappearance of the last
+ *   subscriber and the stopping of the sharing coroutine. It defaults to zero (stop immediately).
+ * * [replayExpiration] &mdash; configures a delay between the stopping of
+ *   the sharing coroutine and the resetting of the replay cache (which makes the cache empty for the [shareIn] operator
+ *   and resets the cached value to the original `initialValue` for the [stateIn] operator).
+ *   It defaults to `Long.MAX_VALUE` (keep replay cache forever, never reset buffer)
  *
  * This function throws [IllegalArgumentException] when either [stopTimeout] or [replayExpiration]
  * are negative.

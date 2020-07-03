@@ -60,7 +60,7 @@ import kotlin.jvm.*
  * Q : -->---------- [2A] -- [2B] -- [2C] -->--  // collect
  * ```
  *
- * When operator's code takes some time to execute this decreases the total execution time of the flow.
+ * When the operator's code takes some time to execute, this decreases the total execution time of the flow.
  * A [channel][Channel] is used between the coroutines to send elements emitted by the coroutine `P` to
  * the coroutine `Q`. If the code before `buffer` operator (in the coroutine `P`) is faster than the code after
  * `buffer` operator (in the coroutine `Q`), then this channel will become full at some point and will suspend
@@ -69,13 +69,13 @@ import kotlin.jvm.*
  *
  * ### Buffer overflow
  *
- * By default, emitter is suspended when buffer overflows to let collector catch up. This strategy can be
- * overridden with an optional [onBufferOverflow] parameter so that emitter is never suspended. In this
- * case, on buffer overflow either the oldest value in the buffer is dropped with [DROP_OLDEST][BufferOverflow.DROP_OLDEST]
+ * By default, the emitter is suspended when the buffer overflows, to let collector catch up. This strategy can be
+ * overridden with an optional [onBufferOverflow] parameter so that the emitter is never suspended. In this
+ * case, on buffer overflow either the oldest value in the buffer is dropped with the [DROP_OLDEST][BufferOverflow.DROP_OLDEST]
  * strategy and the latest emitted value is added to the buffer,
- * or the latest value that is being emitted is dropped with [DROP_LATEST][BufferOverflow.DROP_LATEST] strategy,
+ * or the latest value that is being emitted is dropped with the [DROP_LATEST][BufferOverflow.DROP_LATEST] strategy,
  * keeping the buffer intact.
- * To implement either of the custom strategies, the buffer of at least one element is used.
+ * To implement either of the custom strategies, a buffer of at least one element is used.
  *
  * ### Operator fusion
  *
@@ -86,8 +86,8 @@ import kotlin.jvm.*
  * which effectively requests a buffer of any size. Multiple requests with a specified buffer
  * size produce a buffer with the sum of the requested buffer sizes.
  *
- * A `buffer` call with non-default value of [onBufferOverflow] parameter overrides all immediately preceding
- * buffering operators, because it never suspends its upstream and thus no upstream buffer would ever be used.
+ * A `buffer` call with a non-default value of the [onBufferOverflow] parameter overrides all immediately preceding
+ * buffering operators, because it never suspends its upstream, and thus no upstream buffer would ever be used.
  *
  * ### Conceptual implementation
  *
@@ -110,7 +110,7 @@ import kotlin.jvm.*
  * ### Conflation
  *
  * Usage of this function with [capacity] of [Channel.CONFLATED][Channel.CONFLATED] is a shortcut to
- * `buffer(onBufferOverflow = `[`BufferOverflow.DROP_OLDEST`][BufferOverflow.DROP_OLDEST]`)` and is available via
+ * `buffer(onBufferOverflow = `[`BufferOverflow.DROP_OLDEST`][BufferOverflow.DROP_OLDEST]`)`, and is available via
  * a separate [conflate] operator. See its documentation for details.
  *
  * @param capacity type/capacity of the buffer between coroutines. Allowed values are the same as in `Channel(...)`
@@ -118,7 +118,7 @@ import kotlin.jvm.*
  *   [RENDEZVOUS][Channel.RENDEZVOUS], [UNLIMITED][Channel.UNLIMITED] or a non-negative value indicating
  *   an explicitly requested size.
  * @param onBufferOverflow configures an action on buffer overflow (optional, defaults to
- *   [SUSPEND][BufferOverflow.SUSPEND], supported only when `capacity >= 0` or `capacity = Channel.BUFFERED`,
+ *   [SUSPEND][BufferOverflow.SUSPEND], supported only when `capacity >= 0` or `capacity == Channel.BUFFERED`,
  *   implicitly creates a channel with at least one buffered element).
  */
 @Suppress("NAME_SHADOWING")
@@ -229,7 +229,7 @@ public fun <T> Flow<T>.conflate(): Flow<T> = buffer(CONFLATED)
  * ```
  *
  * Note that an instance of [SharedFlow] does not have an execution context by itself,
- * so applying `flowOn` to a `SharedFlow` has not effect. See [SharedFlow] documentation on Operator Fusion.
+ * so applying `flowOn` to a `SharedFlow` has not effect. See the [SharedFlow] documentation on Operator Fusion.
  *
  * @throws [IllegalArgumentException] if provided context contains [Job] instance.
  */
@@ -262,7 +262,7 @@ public fun <T> Flow<T>.cancellable(): Flow<T> =
 internal interface CancellableFlow<out T> : Flow<T>
 
 /**
- * Named implementation class for a flow that is defined by [cancellable] function.
+ * Named implementation class for a flow that is defined by the [cancellable] function.
  */
 private class CancellableFlowImpl<T>(val flow: Flow<T>) : CancellableFlow<T> {
     override suspend fun collect(collector: FlowCollector<T>) {

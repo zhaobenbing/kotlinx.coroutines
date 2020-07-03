@@ -17,16 +17,16 @@ import kotlin.jvm.*
 
 /**
  * Converts a _cold_ [Flow] into a _hot_ [SharedFlow] that is started in the given coroutine [scope],
- * sharing emissions from a single running instance of upstream flow with multiple downstream subscribers,
- * and replaying a specified number of [replay] values to new subscribers. See [SharedFlow] documentation
- * on a general concepts of shared flows.
+ * sharing emissions from a single running instance of the upstream flow with multiple downstream subscribers,
+ * and replaying a specified number of [replay] values to new subscribers. See the [SharedFlow] documentation
+ * for the general concepts of shared flows.
  *
- * Start of the sharing coroutine is controlled by the [started] parameter. By default, the sharing coroutine is started
- * [Eagerly][SharingStarted.Eagerly], so upstream flow is started even before the first subscribers appears. Note,
- * that in this case all the values emitted by upstream beyond the most recent values as specified by
+ * The starting of the sharing coroutine is controlled by the [started] parameter. By default, the sharing coroutine is started
+ * [Eagerly][SharingStarted.Eagerly], so the upstream flow is started even before the first subscribers appear. Note
+ * that in this case all values emitted by the upstream beyond the most recent values as specified by
  * [replay] parameter **will be immediately discarded**.
  *
- * Additional options for [started] parameter are:
+ * Additional options for the [started] parameter are:
  *
  * * [Lazily][SharingStarted.Lazily] &mdash; starts the upstream flow after the first subscriber appears, which guarantees
  *   that this first subscriber gets all the emitted values, while subsequent subscribers are only guaranteed to
@@ -35,12 +35,12 @@ import kotlin.jvm.*
  * * [WhileSubscribed()][SharingStarted.WhileSubscribed] &mdash; starts the upstream flow when the first subscriber
  *   appears, immediately stops when the last subscriber disappears, keeping the replay cache forever.
  *   It has additional optional configuration parameters as explained in its documentation.
- * * Custom strategy can be supplied by implementing [SharingStarted] interface.
+ * * A custom strategy can be supplied by implementing the [SharingStarted] interface.
  *
- * `shareIn` operator is useful in situations when there is a _cold_ flow that is expensive to create and/or
- * to maintain but there are multiple subscribers that need to collect its values. For example, consider a
+ * The `shareIn` operator is useful in situations when there is a _cold_ flow that is expensive to create and/or
+ * to maintain, but there are multiple subscribers that need to collect its values. For example, consider a
  * flow of messages coming from a backend over the expensive network connection, taking a lot of
- * time to establish. Conceptually it might be implemented like this:
+ * time to establish. Conceptually, it might be implemented like this:
  *
  * ```
  * val backendMessages: Flow<Message> = flow {
@@ -56,21 +56,21 @@ import kotlin.jvm.*
  * ```
  *
  * If this flow is directly used in the application, then every time it is collected a fresh connection is
- * established and it will take a while before messages start flowing. However, we can share a single connection
+ * established, and it will take a while before messages start flowing. However, we can share a single connection
  * and establish it eagerly like this:
  *
  * ```
  * val messages: SharedFlow<Message> = backendMessages.shareIn(scope, 0)
  * ```
  *
- * Now, a single connection is shared between all collectors from `messages` and there is a chance that the connection
+ * Now a single connection is shared between all collectors from `messages`, and there is a chance that the connection
  * is already established by the time it is needed.
  *
  * ### Upstream completion and error handling
  *
- * **Normal completion of the upstream flow has no effect on subscribers**, sharing coroutine continues to run. If a
+ * **Normal completion of the upstream flow has no effect on subscribers**, and the sharing coroutine continues to run. If a
  * a strategy like [SharingStarted.WhileSubscribed] is used, then the upstream can get restarted again. If a special
- * action on upstream completion is need, then an [onCompletion] operator can be used before
+ * action on upstream completion is needed, then an [onCompletion] operator can be used before the
  * `shareIn` operator to emit a special value in this case, like this:
  *
  * ```
@@ -79,10 +79,10 @@ import kotlin.jvm.*
  *     .shareIn(scope, 0)
  * ```
  *
- * Any exception in the upstream flow terminates the sharing coroutine without affecting any of the subscribers
+ * Any exception in the upstream flow terminates the sharing coroutine without affecting any of the subscribers,
  * and will be handled by the [scope] in which the sharing coroutine is launched. Custom exception handling
- * can be configured by using [catch] or [retry] operators before `shareIn` operator.
- * For example, to retry connection on any `IOException` with 1 second delay between attempts use:
+ * can be configured by using the [catch] or [retry] operators before the `shareIn` operator.
+ * For example, to retry connection on any `IOException` with 1 second delay between attempts, use:
  *
  * ```
  * val messages = backendMessages
@@ -97,7 +97,7 @@ import kotlin.jvm.*
  * ### Initial value
  *
  * When a special initial value is needed to signal to subscribers that the upstream is still loading the data,
- * use [onStart] operator on the upstream flow. For example:
+ * use the [onStart] operator on the upstream flow. For example:
  *
  * ```
  * backendMessages
@@ -107,14 +107,14 @@ import kotlin.jvm.*
  *
  * ### Buffering and conflation
  *
- * The `shareIn` operator runs upstream flow in a separate coroutine and buffers emissions from upstream as explained
- * in [buffer] operator description using a buffer of [replay] size or the default (whichever is larger).
- * This default buffering can be overridden with an explicit buffer configuration by preceding `shareIn` call
+ * The `shareIn` operator runs the upstream flow in a separate coroutine, and buffers emissions from upstream as explained
+ * in the [buffer] operator's description, using a buffer of [replay] size or the default (whichever is larger).
+ * This default buffering can be overridden with an explicit buffer configuration by preceding the `shareIn` call
  * with [buffer] or [conflate], for example:
  *
- * * `buffer(0).shareIn(scope, 0)` &mdash; overrides a default buffer size and creates a [SharedFlow] without a buffer.
- *   Effectively, it configures sequential processing between upstream emitter and subscribers,
- *   as emitter is suspended until all subscribers process the value. Note, that the value is still immediately
+ * * `buffer(0).shareIn(scope, 0)` &mdash; overrides the default buffer size and creates a [SharedFlow] without a buffer.
+ *   Effectively, it configures sequential processing between the upstream emitter and subscribers,
+ *   as the emitter is suspended until all subscribers process the value. Note, that the value is still immediately
  *   discarded when there are no subscribers.
  * * `buffer(b).shareIn(scope, r)` &mdash; creates a [SharedFlow] with `replay = r` and `extraBufferCapacity = b`.
  * * `conflate().shareIn(scope, r)` &mdash; creates a [SharedFlow] with `replay = r`, `onBufferOverflow = DROP_OLDEST`,
@@ -127,7 +127,7 @@ import kotlin.jvm.*
  *
  * ### Exceptions
  *
- * This function throws [IllegalArgumentException] on unsupported values of parameters of combinations thereof.
+ * This function throws [IllegalArgumentException] on unsupported values of parameters or combinations thereof.
  *
  * @param scope the coroutine scope in which sharing is started.
  * @param replay the number of values replayed to new subscribers (cannot be negative).
@@ -173,7 +173,7 @@ private fun <T> Flow<T>.configureSharing(replay: Int): SharingConfig<T> {
                     Channel.OPTIONAL_CHANNEL, Channel.BUFFERED, 0 -> // handle special capacities
                         when {
                             onBufferOverflow == BufferOverflow.SUSPEND -> // buffer was configured with suspension
-                                if (capacity == 0) 0 else defaultExtraCapacity // keep explicitly configure 0 or use default
+                                if (capacity == 0) 0 else defaultExtraCapacity // keep explicitly configured 0 or use default
                             replay == 0 -> 1 // no suspension => need at least buffer of one
                             else -> 0 // replay > 0 => no need for extra buffer beyond replay because we don't suspend
                         }
@@ -224,14 +224,14 @@ private fun <T> CoroutineScope.launchSharing(
 
 /**
  * Converts a _cold_ [Flow] into a _hot_ [StateFlow] that is started in the given coroutine [scope],
- * sharing the most recently emitted value by single running instance of upstream flow with multiple
- * downstream subscribers. See [StateFlow] documentation on a general concepts of state flows.
+ * sharing the most recently emitted value from a single running instance of the upstream flow with multiple
+ * downstream subscribers. See the [StateFlow] documentation for the general concepts of state flows.
  *
- * Start of the sharing coroutine is controlled by the [started] parameter as explained in the
+ * The starting of the sharing coroutine is controlled by the [started] parameter, as explained in the
  * documentation for [shareIn] operator.
  *
- * `stateIn` operator is useful in situations when there is a _cold_ flow that provides updates to the
- * value of some state and is expensive to create and/or to maintain but there are multiple subscribers
+ * The `stateIn` operator is useful in situations when there is a _cold_ flow that provides updates to the
+ * value of some state and is expensive to create and/or to maintain, but there are multiple subscribers
  * that need to collect the most recent state value. For example, consider a
  * flow of state updates coming from a backend over the expensive network connection, taking a lot of
  * time to establish. Conceptually it might be implemented like this:
@@ -250,26 +250,26 @@ private fun <T> CoroutineScope.launchSharing(
  * ```
  *
  * If this flow is directly used in the application, then every time it is collected a fresh connection is
- * established and it will take a while before state updates start flowing. However, we can share a single connection
+ * established, and it will take a while before state updates start flowing. However, we can share a single connection
  * and establish it eagerly like this:
  *
  * ```
  * val state: StateFlow<State> = backendMessages.stateIn(scope, initialValue = State.LOADING)
  * ```
  *
- * Now, a single connection is shared between all collectors from `state` and there is a chance that the connection
+ * Now, a single connection is shared between all collectors from `state`, and there is a chance that the connection
  * is already established by the time it is needed.
  *
  * ### Upstream completion and error handling
  *
- * **Normal completion of the upstream flow has no effect on subscribers**, sharing coroutine continues to run. If a
+ * **Normal completion of the upstream flow has no effect on subscribers**, and the sharing coroutine continues to run. If a
  * a strategy like [SharingStarted.WhileSubscribed] is used, then the upstream can get restarted again. If a special
- * action on upstream completion is need, then an [onCompletion] operator can be used before
- * `stateIn` operator to emit a special value in this case. See [shareIn] operator documentation for an example.
+ * action on upstream completion is needed, then an [onCompletion] operator can be used before
+ * the `stateIn` operator to emit a special value in this case. See the [shareIn] operator's documentation for an example.
  *
- * Any exception in the upstream flow terminates the sharing coroutine without affecting any of the subscribers
+ * Any exception in the upstream flow terminates the sharing coroutine without affecting any of the subscribers,
  * and will be handled by the [scope] in which the sharing coroutine is launched. Custom exception handling
- * can be configured by using [catch] or [retry] operators before `stateIn` operator similarly to
+ * can be configured by using the [catch] or [retry] operators before the `stateIn` operator, similarly to
  * the [shareIn] operator.
  *
  * ### Operator fusion
@@ -282,8 +282,8 @@ private fun <T> CoroutineScope.launchSharing(
  * @param started the strategy that controls when sharing is started and stopped
  *   (optional, default to [Eagerly][SharingStarted.Eagerly] starting the sharing without waiting for subscribers).
  * @param initialValue the initial value of the state flow.
- *   This value is also used when state flow is reset using [SharingStarted.WhileSubscribed] strategy
- *   with `replayExpirationMillis` parameter.
+ *   This value is also used when the state flow is reset using the [SharingStarted.WhileSubscribed] strategy
+ *   with the `replayExpirationMillis` parameter.
  */
 @ExperimentalCoroutinesApi
 public fun <T> Flow<T>.stateIn(
@@ -299,8 +299,8 @@ public fun <T> Flow<T>.stateIn(
 
 /**
  * Starts the upstream flow in a given [scope], suspends until the first value is emitted, and returns a _hot_
- * [StateFlow] of future emissions, sharing the most recently emitted value by this running instance of upstream flow
- * with multiple downstream subscribers. See [StateFlow] documentation on a general concepts of state flows.
+ * [StateFlow] of future emissions, sharing the most recently emitted value from this running instance of the upstream flow
+ * with multiple downstream subscribers. See the [StateFlow] documentation for the general concepts of state flows.
  *
  * @param scope the coroutine scope in which sharing is started.
  */
@@ -332,14 +332,14 @@ private fun <T> CoroutineScope.launchSharingDeferred(
 // -------------------------------- asSharedFlow/asStateFlow --------------------------------
 
 /**
- * Represents this mutable shared flow as read-only shared flow.
+ * Represents this mutable shared flow as a read-only shared flow.
  */
 @ExperimentalCoroutinesApi
 public fun <T> MutableSharedFlow<T>.asSharedFlow(): SharedFlow<T> =
     ReadonlySharedFlow(this)
 
 /**
- * Represents this mutable state flow as read-only state flow.
+ * Represents this mutable state flow as a read-only state flow.
  */
 @ExperimentalCoroutinesApi
 public fun <T> MutableStateFlow<T>.asStateFlow(): StateFlow<T> =
@@ -366,8 +366,8 @@ private class ReadonlyStateFlow<T>(
 
 /**
  * Returns a flow that invokes the given [action] **after** this shared flow starts to be collected
- * (after subscription is registered). The [action] is called before any value is emitted from the upstream
- * flow to this subscription yet, but it is guaranteed that all future emissions to the upstream flow will be
+ * (after the subscription is registered). The [action] is called before any value is emitted from the upstream
+ * flow to this subscription, but it is guaranteed that all future emissions to the upstream flow will be
  * collected by this subscription.
  *
  * The receiver of the [action] is [FlowCollector], so `onSubscription` can emit additional elements.
@@ -398,4 +398,3 @@ internal class SubscribedFlowCollector<T>(
         if (collector is SubscribedFlowCollector) collector.onSubscription()
     }
 }
-

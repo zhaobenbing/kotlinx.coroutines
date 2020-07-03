@@ -17,9 +17,9 @@ internal interface DistinctFlow<T> : Flow<T> {
 }
 
 /**
- * An analogue of the [flow] builder that does not check the context of execution of the resulting flow
- * and implementation must also guaranteed that all emitted values are distinct, so that [distinctUntilChanged]
- * can be optimized away. Used in our own operators where we trust this contracts to be met.
+ * An analogue of the [flow] builder that does not check the context of execution of the resulting flow,
+ * and the implementation must also guarantee that all emitted values are distinct, so that [distinctUntilChanged]
+ * can be optimized away. Used in our own operators where we trust these contracts to be met.
  */
 @PublishedApi
 internal inline fun <T> unsafeDistinctFlow(

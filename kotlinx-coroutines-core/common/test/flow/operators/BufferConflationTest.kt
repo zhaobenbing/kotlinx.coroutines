@@ -9,7 +9,7 @@ import kotlinx.coroutines.channels.*
 import kotlin.test.*
 
 /**
- * A _behavioral_ test for conflation options that can be configured by [buffer] operator to test that it is
+ * A _behavioral_ test for conflation options that can be configured by the [buffer] operator to test that it is
  * implemented properly and that adjacent [buffer] calls are fused properly.
 */
 class BufferConflationTest : TestBase() {
@@ -21,7 +21,7 @@ class BufferConflationTest : TestBase() {
         op: suspend Flow<Int>.() -> Flow<Int>
     ) = runTest {
         expect(1)
-        // emit all and conflate / then collect first & last
+        // emit all and conflate, then collect first & last
         val expectedList = when (onBufferOverflow) {
             BufferOverflow.DROP_OLDEST -> listOf(0) + (n - capacity until n).toList() // first item & capacity last ones
             BufferOverflow.DROP_LATEST -> (0..capacity).toList() // first & capacity following ones
@@ -144,4 +144,3 @@ class BufferConflationTest : TestBase() {
             .buffer(3, BufferOverflow.DROP_OLDEST)
         }
 }
-

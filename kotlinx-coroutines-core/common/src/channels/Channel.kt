@@ -511,7 +511,7 @@ public interface ChannelIterator<out E> {
  *   This channel has an array buffer of a fixed `capacity`.
  *   [Sending][send] suspends only when the buffer is full, and [receiving][receive] suspends only when the buffer is empty.
  *
- * Buffered channels can be configured with an additional [`onBufferOverflow`][BufferOverflow] parameter. It controls behaviour
+ * Buffered channels can be configured with an additional [`onBufferOverflow`][BufferOverflow] parameter. It controls the behaviour
  * of the channel's [send][Channel.send] function on buffer overflow:
  *
  * * [SUSPEND][BufferOverflow.SUSPEND] &mdash; the default, suspend `send` on buffer overflow until there is
@@ -551,7 +551,7 @@ public interface Channel<E> : SendChannel<E>, ReceiveChannel<E> {
          * Requests a buffered channel with the default buffer capacity in the `Channel(...)` factory function.
          * The default capacity for a channel that [suspends][BufferOverflow.SUSPEND] on overflow
          * is 64 and can be overridden by setting [DEFAULT_BUFFER_PROPERTY_NAME] on JVM.
-         * For non-suspending channel a buffer of capacity 1 is used.
+         * For non-suspending channels, a buffer of capacity 1 is used.
          */
         public const val BUFFERED: Int = -2
 
@@ -576,8 +576,8 @@ public interface Channel<E> : SendChannel<E>, ReceiveChannel<E> {
  *
  * @param capacity either a positive channel capacity or one of the constants defined in [Channel.Factory].
  * @param onBufferOverflow configures an action on buffer overflow (optional, defaults to
- *   [suspending][BufferOverflow.SUSPEND] attempt to [send][Channel.send] a value,
- *   supported only when `capacity >= 0` or `capacity = Channel.BUFFERED`,
+ *   a [suspending][BufferOverflow.SUSPEND] attempt to [send][Channel.send] a value,
+ *   supported only when `capacity >= 0` or `capacity == Channel.BUFFERED`,
  *   implicitly creates a channel with at least one buffered element).
  * @throws IllegalArgumentException when [capacity] < -2
  */
