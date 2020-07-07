@@ -97,7 +97,7 @@ public fun <T> Flow<T>.publishOn(context: CoroutineContext): Flow<T> = noImpl()
  * Opposed to subscribeOn, it it **possible** to use multiple `flowOn` operators in the one flow
  * @suppress
  */
-@Deprecated(message = "Use flowOn instead", level = DeprecationLevel.ERROR)
+@Deprecated(message = "Use 'flowOn' instead", level = DeprecationLevel.ERROR)
 public fun <T> Flow<T>.subscribeOn(context: CoroutineContext): Flow<T> = noImpl()
 
 /**
@@ -149,7 +149,7 @@ public fun <T> Flow<T>.onErrorResumeNext(fallback: Flow<T>): Flow<T> = noImpl()
  * @suppress
  */
 @Deprecated(
-    message = "Use launchIn with onEach, onCompletion and catch operators instead",
+    message = "Use 'launchIn' with 'onEach', 'onCompletion' and 'catch' instead",
     level = DeprecationLevel.ERROR
 )
 public fun <T> Flow<T>.subscribe(): Unit = noImpl()
@@ -159,7 +159,7 @@ public fun <T> Flow<T>.subscribe(): Unit = noImpl()
  * @suppress
  */
 @Deprecated(
-    message = "Use launchIn with onEach, onCompletion and catch operators instead",
+    message = "Use 'launchIn' with 'onEach', 'onCompletion' and 'catch' instead",
     level = DeprecationLevel.ERROR
 )public fun <T> Flow<T>.subscribe(onEach: suspend (T) -> Unit): Unit = noImpl()
 
@@ -168,7 +168,7 @@ public fun <T> Flow<T>.subscribe(): Unit = noImpl()
  * @suppress
  */
 @Deprecated(
-    message = "Use launchIn with onEach, onCompletion and catch operators instead",
+    message = "Use 'launchIn' with 'onEach', 'onCompletion' and 'catch' instead",
     level = DeprecationLevel.ERROR
 )public fun <T> Flow<T>.subscribe(onEach: suspend (T) -> Unit, onError: suspend (Throwable) -> Unit): Unit = noImpl()
 
@@ -179,7 +179,7 @@ public fun <T> Flow<T>.subscribe(): Unit = noImpl()
  */
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue is named flatMapConcat",
+    message = "Flow analogue is 'flatMapConcat'",
     replaceWith = ReplaceWith("flatMapConcat(mapper)")
 )
 public fun <T, R> Flow<T>.flatMap(mapper: suspend (T) -> Flow<R>): Flow<R> = noImpl()
@@ -431,7 +431,7 @@ public fun <T, R> Flow<T>.switchMap(transform: suspend (value: T) -> Flow<R>): F
 
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue of 'publish' is 'shareIn' operator. \n" +
+    message = "Flow analogue of 'publish()' is 'shareIn'. \n" +
         "publish().connect() is the default strategy (no extra call is needed), \n" +
         "publish().autoConnect() translates to 'started = SharingStared.Lazily' argument, \n" +
         "publish().refCount() translates to 'started = SharingStared.WhileSubscribed()' argument.",
@@ -441,7 +441,7 @@ public fun <T> Flow<T>.publish(): Flow<T> = noImpl()
 
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue of 'publish(bufferSize)' is 'buffer' operator followed by 'shareIn'. \n" +
+    message = "Flow analogue of 'publish(bufferSize)' is 'buffer' followed by 'shareIn'. \n" +
         "publish().connect() is the default strategy (no extra call is needed), \n" +
         "publish().autoConnect() translates to 'started = SharingStared.Lazily' argument, \n" +
         "publish().refCount() translates to 'started = SharingStared.WhileSubscribed()' argument.",
@@ -451,7 +451,7 @@ public fun <T> Flow<T>.publish(bufferSize: Int): Flow<T> = noImpl()
 
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue of 'replay()' is 'shareIn' operator with unlimited replay. \n" +
+    message = "Flow analogue of 'replay()' is 'shareIn' with unlimited replay. \n" +
         "replay().connect() is the default strategy (no extra call is needed), \n" +
         "replay().autoConnect() translates to 'started = SharingStared.Lazily' argument, \n" +
         "replay().refCount() translates to 'started = SharingStared.WhileSubscribed()' argument.",
@@ -461,7 +461,7 @@ public fun <T> Flow<T>.replay(): Flow<T> = noImpl()
 
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue of 'replay(bufferSize)' is 'shareIn' operator with the specified replay parameter. \n" +
+    message = "Flow analogue of 'replay(bufferSize)' is 'shareIn' with the specified replay parameter. \n" +
         "replay().connect() is the default strategy (no extra call is needed), \n" +
         "replay().autoConnect() translates to 'started = SharingStared.Lazily' argument, \n" +
         "replay().refCount() translates to 'started = SharingStared.WhileSubscribed()' argument.",
@@ -471,7 +471,7 @@ public fun <T> Flow<T>.replay(bufferSize: Int): Flow<T> = noImpl()
 
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Flow analogue of 'cache()' is 'shareIn' operator with unlimited replay and 'started = SharingStared.Lazily' argument'",
+    message = "Flow analogue of 'cache()' is 'shareIn' with unlimited replay and 'started = SharingStared.Lazily' argument'",
     replaceWith = ReplaceWith("this.shareIn(scope, Int.MAX_VALUE, started = SharingStared.Lazily)")
 )
 public fun <T> Flow<T>.cache(): Flow<T> = noImpl()
