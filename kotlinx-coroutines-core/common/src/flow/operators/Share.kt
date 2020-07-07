@@ -366,8 +366,11 @@ private class ReadonlyStateFlow<T>(
 
 /**
  * Returns a flow that invokes the given [action] **after** this shared flow starts to be collected
- * (after the subscription is registered). The [action] is called before any value is emitted from the upstream
- * flow to this subscription, but it is guaranteed that all future emissions to the upstream flow will be
+ * (after the subscription is registered).
+ *
+ * The [action] is called before any value is emitted from the upstream
+ * flow to this subscription but after the subscription is established. It is guaranteed that all emissions to
+ * the upstream flow that happen inside or immediately after this `onStart` action will be
  * collected by this subscription.
  *
  * The receiver of the [action] is [FlowCollector], so `onSubscription` can emit additional elements.
