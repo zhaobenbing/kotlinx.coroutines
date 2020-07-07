@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.internal.unsafeFlow as flow
 
 /**
  * Creates a _cold_ flow from the given suspendable [block].
- * The flow is _cold_ means that the [block] is called every time a terminal operator is applied to the resulting flow.
+ * The flow being _cold_ means that the [block] is called every time a terminal operator is applied to the resulting flow.
  *
  * Example of usage:
  *
@@ -149,7 +149,7 @@ private object EmptyFlow : Flow<Nothing> {
 
 /**
  * Creates a _cold_ flow that produces values from the given array.
- * The flow is _cold_ means that the array components are read every time a terminal operator is applied
+ * The flow being _cold_ means that the array components are read every time a terminal operator is applied
  * to the resulting flow.
  */
 public fun <T> Array<T>.asFlow(): Flow<T> = flow {
@@ -160,7 +160,7 @@ public fun <T> Array<T>.asFlow(): Flow<T> = flow {
 
 /**
  * Creates a _cold_ flow that produces values from the array.
- * The flow is _cold_ means that the array components are read every time a terminal operator is applied
+ * The flow being _cold_ means that the array components are read every time a terminal operator is applied
  * to the resulting flow.
  */
 public fun IntArray.asFlow(): Flow<Int> = flow {
@@ -171,7 +171,7 @@ public fun IntArray.asFlow(): Flow<Int> = flow {
 
 /**
  * Creates a _cold_ flow that produces values from the given array.
- * The flow is _cold_ means that the array components are read every time a terminal operator is applied
+ * The flow being _cold_ means that the array components are read every time a terminal operator is applied
  * to the resulting flow.
  */
 public fun LongArray.asFlow(): Flow<Long> = flow {
