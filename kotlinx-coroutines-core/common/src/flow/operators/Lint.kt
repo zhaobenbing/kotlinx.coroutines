@@ -45,7 +45,7 @@ public fun <T> StateFlow<T>.conflate(): Flow<T> = noImpl()
  */
 @Deprecated(
     level = DeprecationLevel.ERROR,
-    message = "Applying 'distinctUntilChanged' to StateFlow has no effect. See Sthe tateFlow documentation on Operator Fusion.",
+    message = "Applying 'distinctUntilChanged' to StateFlow has no effect. See the StateFlow documentation on Operator Fusion.",
     replaceWith = ReplaceWith("this")
 )
 public fun <T> StateFlow<T>.distinctUntilChanged(): Flow<T> = noImpl()
