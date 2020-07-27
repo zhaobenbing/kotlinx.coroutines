@@ -90,9 +90,9 @@ import kotlin.native.concurrent.*
  *     |    ( CELL IN THE SMART ONE  )
  *     |
  *     |
- *     |            `suspend` gets   +-------+  ( ELIMINATION HAPPENED, )
- *     |         +-----------------> | TAKEN |  (  BOTH `resume` and    )
- *     V         |   the element.    +-------+  (  `suspend` SUCCEED    )
+ *     |            `suspend` gets   +-------+  ( RENDEZVOUS HAPPENED, )
+ *     |         +-----------------> | TAKEN |  (  BOTH `resume` and   )
+ *     V         |   the element.    +-------+  (  `suspend` SUCCEED   )
  *  +-------+    |
  *  | value | --<
  *  +-------+   |
@@ -589,7 +589,7 @@ private class WrappedContinuationValue(val cont: Continuation<*>)
 @SharedImmutable
 private val SEGMENT_SIZE = systemProp("kotlinx.coroutines.sqs.segmentSize", 16)
 @SharedImmutable
-private val MAX_SPIN_CYCLES = systemProp("kotlinx.coroutines.sqs.maxSpinCycles", 100)
+private val MAX_SPIN_CYCLES = 2//systemProp("kotlinx.coroutines.sqs.maxSpinCycles", 100)
 @SharedImmutable
 private val TAKEN = Symbol("TAKEN")
 @SharedImmutable
