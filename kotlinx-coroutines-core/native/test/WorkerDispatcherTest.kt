@@ -244,13 +244,14 @@ class WorkerDispatcherTest : TestBase() {
         finish(3)
     }
 
+    @Ignore
     @Test
     fun testMutexStress() = runTest {
         expect(1)
         val mutex = Mutex()
         val atomic = AtomicInt(0)
         val n = 100
-        val k = 239 // mutliplier
+        val k = 239 // multiplier
         val job = launch(dispatcher) {
             repeat(n) {
                 mutex.withLock {
